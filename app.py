@@ -972,7 +972,7 @@ def main():
         st.markdown("---")
         st.markdown("""
         <div style="text-align: center; color: #888; padding: 1rem;">
-        📧 문의: 경영지원팀 | 📅 최종 업데이트: 2024.12
+        📧 문의: 박연준 | 📅 최종 업데이트: 2025.12
         </div>
         """, unsafe_allow_html=True)
     
