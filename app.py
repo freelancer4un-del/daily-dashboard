@@ -118,7 +118,7 @@ KEY_INDICATORS = [
 # 페이지 설정
 # =============================================================================
 st.set_page_config(
-    page_title="📊 친환경·인프라 투자 대시보드 v4.0",
+    page_title="📊 IFAM 대시보드 v4.0",
     page_icon="🌱",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -711,7 +711,7 @@ def main():
     # 메인 헤더
     st.markdown(f"""
     <div class="main-header">
-        <h1>🌱 친환경·인프라 투자 대시보드 v4.0</h1>
+        <h1>🌱 IFAM 대시보드 v4.0</h1>
         <p>📅 기준일: {latest_date.strftime('%Y년 %m월 %d일')} | 신재생에너지·순환경제·인프라 전문</p>
     </div>
     """, unsafe_allow_html=True)
@@ -1130,7 +1130,7 @@ def main():
     st.markdown("---")
     st.markdown("""
     <div style="text-align: center; color: #666; padding: 1rem;">
-        🌱 친환경·인프라 투자 대시보드 v4.0 | 신재생에너지·순환경제·인프라 전문 자산운용사용
+        🌱 IFAM 대시보드 v4.0 | 신재생에너지·순환경제·금융지표 대쉬보드
     </div>
     """, unsafe_allow_html=True)
 
