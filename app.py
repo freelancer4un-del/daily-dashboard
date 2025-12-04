@@ -1264,8 +1264,26 @@ def main():
         col1, col2 = st.columns([1, 2])
         
         with col1:
+            # 1) 예측 대상 선택
             target = st.selectbox("예측 대상", KEY_INDICATORS, index=3, key="pt")
-            features = st.multiselect("설명 변수", [x for x in KEY_INDICATORS if x != target], default=["두바이유", "달러환율"], key="pf")
+            
+            # 2) 설명 변수 옵션 리스트 (타깃은 제외)
+            feature_options = [x for x in KEY_INDICATORS if x != target]
+            
+            # 3) 기본 추천 설명 변수 후보
+            base_default = ["두바이유", "달러환율"]
+            #    → 실제 옵션에 존재하는 것만 기본값으로 사용
+            default_features = [x for x in base_default if x in feature_options]
+            
+            # 4) 멀티셀렉트 (에러 안 나게 default를 옵션에 맞게 조정)
+            features = st.multiselect(
+                "설명 변수",
+                feature_options,
+                default=default_features,
+                key="pf",
+            )
+            
+            # 5) 학습 기간 / 실행 버튼
             train_period = st.selectbox("학습 기간", ["3개월", "6개월", "1년"], index=2, key="tp")
             run_pred = st.button("🚀 예측 실행", use_container_width=True)
         
@@ -1280,9 +1298,26 @@ def main():
                     st.markdown(f"**R² (설명력): {model_info['r2']:.3f}** | MAE: {model_info['mae']:.2f}")
                     
                     fig = go.Figure()
-                    fig.add_trace(go.Scatter(x=model_info['dates'], y=model_info['y_actual'], mode='lines', name='실제값', line=dict(color='#3498db')))
-                    fig.add_trace(go.Scatter(x=model_info['dates'], y=model_info['y_pred'], mode='lines', name='예측값', line=dict(color='#e94560', dash='dot')))
-                    fig.update_layout(template='plotly_dark', paper_bgcolor='rgba(22,33,62,0.8)', plot_bgcolor='rgba(22,33,62,0.8)', height=300)
+                    fig.add_trace(go.Scatter(
+                        x=model_info['dates'],
+                        y=model_info['y_actual'],
+                        mode='lines',
+                        name='실제값',
+                        line=dict(color='#3498db')
+                    ))
+                    fig.add_trace(go.Scatter(
+                        x=model_info['dates'],
+                        y=model_info['y_pred'],
+                        mode='lines',
+                        name='예측값',
+                        line=dict(color='#e94560', dash='dot')
+                    ))
+                    fig.update_layout(
+                        template='plotly_dark',
+                        paper_bgcolor='rgba(22,33,62,0.8)',
+                        plot_bgcolor='rgba(22,33,62,0.8)',
+                        height=300
+                    )
                     st.plotly_chart(fig, use_container_width=True)
                     
                     pred = predict_future(model_info, df, features)
