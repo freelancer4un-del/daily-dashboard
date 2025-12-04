@@ -1327,7 +1327,7 @@ def main():
             )
             
             # 5) 학습 기간 / 실행 버튼
-            train_period = st.selectbox("학습 기간", ["3개월", "6개월", "1년"], index=2, key="tp")
+            train_period = st.selectbox("학습 기간", ["3개월", "6개월", "1년", "전체"], index=2, key="tp")
             run_pred = st.button("🚀 예측 실행", use_container_width=True)
         
         with col2:
