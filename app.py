@@ -718,7 +718,7 @@ def main():
     st.markdown(f"""
     <div class="main-header">
         <h1>🌱 친환경·인프라 투자 대시보드 v5.0</h1>
-        <p>📅 기준일: {latest_date.strftime('%Y년 %m월 %d일')} | 🗓️ 오늘: {today.strftime('%Y년 %m월 %d일 %H:%M')} | 신재생에너지·순환경제·인프라 전문</p>
+        <p>📅 기준일: {latest_date.strftime('%Y년 %m월 %d일')} | 🗓️ 오늘: {today.strftime('%Y년 %m월 %d일')} | 인프라프론티어자산운용(주) </p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -1014,7 +1014,7 @@ def main():
         st.markdown("---")
         st.markdown("""
         <div style="text-align: center; color: #888; padding: 1rem;">
-        📧 문의: 경영지원팀 | 📅 최종 업데이트: 2024.12
+        📧 문의: 박연준(yjpark@ifasset.co.kr) | 📅 최종 업데이트: 2025.12
         </div>
         """, unsafe_allow_html=True)
     
@@ -1321,7 +1321,7 @@ def main():
     st.markdown("---")
     st.markdown("""
     <div style="text-align: center; color: #666; padding: 1rem;">
-        🌱 친환경·인프라 투자 대시보드 v5.0 | 신재생에너지·순환경제·인프라 전문 자산운용사용
+        🌱 친환경·인프라 투자 대시보드 v5.0 | 신재생에너지·순환경제·금융 지표 대시보드
     </div>
     """, unsafe_allow_html=True)
 
