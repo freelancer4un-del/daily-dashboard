@@ -727,7 +727,7 @@ def main():
     # 급변동 알림
     alerts = check_alerts(summary)
     if alerts:
-        st.markdown(f'<div class="alert-box"><h4>🚨 급변동 알림 ({len(alerts)}건) - 전일(직전 거래일) 대비</h4></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="alert-box"><h4>🚨 급변동 알림 ({len(alerts)}건) - 기준일 대비</h4></div>', unsafe_allow_html=True)
         num_cols = 4
         num_rows = (len(alerts) + num_cols - 1) // num_cols
         for row in range(num_rows):
