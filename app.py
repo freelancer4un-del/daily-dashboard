@@ -725,27 +725,64 @@ def main():
     summary = get_summary(df)
     
     # 급변동 알림
-    alerts = check_alerts(summary)
-    if alerts:
-        st.markdown(f'<div class="alert-box"><h4>🚨 급변동 알림 ({len(alerts)}건) - 기준일 대비</h4></div>', unsafe_allow_html=True)
-        num_cols = 4
-        num_rows = (len(alerts) + num_cols - 1) // num_cols
-        for row in range(num_rows):
-            cols = st.columns(num_cols)
-            for col_idx in range(num_cols):
-                alert_idx = row * num_cols + col_idx
-                if alert_idx < len(alerts):
-                    alert = alerts[alert_idx]
-                    with cols[col_idx]:
-                        direction = "▲" if alert['direction'] == 'up' else "▼"
-                        color = "#00d26a" if alert['direction'] == 'up' else "#ff6b6b"
-                        st.markdown(f"""
-                        <div class="alert-item" style="border-color: {color};">
-                            <div style="color: #888; font-size: 0.8rem;">{alert['icon']} {alert['category']}</div>
-                            <div style="color: #fff; font-weight: bold;">{alert['indicator']}</div>
-                            <div style="color: {color}; font-weight: bold;">{direction} {abs(alert['change_pct']):.2f}%</div>
+  alerts = check_alerts(summary)
+if alerts:
+    st.markdown(
+        f'<div class="alert-box"><h4>🚨 급변동 알림 ({len(alerts)}건) - 기준일 대비</h4></div>',
+        unsafe_allow_html=True,
+    )
+    num_cols = 4
+    num_rows = (len(alerts) + num_cols - 1) // num_cols
+
+    for row in range(num_rows):
+        cols = st.columns(num_cols)
+        for col_idx in range(num_cols):
+            alert_idx = row * num_cols + col_idx
+            if alert_idx >= len(alerts):
+                continue
+
+            alert = alerts[alert_idx]
+            with cols[col_idx]:
+                # 방향/색상
+                direction_symbol = "▲" if alert["direction"] == "up" else "▼"
+                color = "#00d26a" if alert["direction"] == "up" else "#ff6b6b"
+
+                # 값 포맷팅
+                current_str = format_value(alert["current"], alert["format"], alert["unit"])
+                previous_str = format_value(alert["previous"], alert["format"], alert["unit"])
+
+                # 변화 표시 문자열 (금리/스왑: bp, LNG: 절대값, 나머지: %)
+                if alert.get("is_rate"):
+                    change_str = f"{abs(alert['change']) * 100:.1f}bp"
+                elif alert.get("is_lng"):
+                    # LNG는 원 단위 절대 변화 사용 중
+                    change_str = f"{abs(alert['change']):.2f}"
+                else:
+                    change_str = f"{abs(alert['change_pct']):.2f}%"
+
+                st.markdown(
+                    f"""
+                    <div class="alert-item" style="border-color: {color};">
+                        <div style="color: #888; font-size: 0.8rem;">
+                            {alert['icon']} {alert['category']}
                         </div>
-                        """, unsafe_allow_html=True)
+                        <div style="color: #fff; font-weight: bold;">
+                            {alert['indicator']}
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 0.4rem;">
+                            <div style="color: {color}; font-weight: bold;">
+                                {direction_symbol} {change_str}
+                            </div>
+                            <div style="color: #aaa; font-size: 0.8rem; text-align: right;">
+                                {previous_str}<br>
+                                → <strong>{current_str}</strong>
+                            </div>
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
     
     # 탭 (메뉴얼 탭 맨 앞에 추가)
     tab0, tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
