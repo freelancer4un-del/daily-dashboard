@@ -712,7 +712,7 @@ def main():
     st.markdown(f"""
     <div class="main-header">
         <h1>🌱 IFAM 대시보드 v4.0</h1>
-        <p>📅 기준일: {latest_date.strftime('%Y년 %m월 %d일')} | 신재생에너지·순환경제·인프라 전문</p>
+        <p>📅 기준일: {latest_date.strftime('%Y년 %m월 %d일')} | 인프라프론티어자산운용(주)</p>
     </div>
     """, unsafe_allow_html=True)
     
