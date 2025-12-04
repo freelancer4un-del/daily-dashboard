@@ -831,7 +831,97 @@ def main():
         
         st.markdown("---")
         
-        # 3. 수익성 시뮬레이터 탭
+        # 3. 상관관계 분석 탭
+        st.markdown("### 5️⃣ 🔬 상관관계 분석 탭")
+        st.markdown("""
+        <div class="manual-section">
+        <h4>기능 설명</h4>
+        <p><strong>1. 상관관계 매트릭스:</strong></p>
+        <p>• 선택한 지표들 간의 상관계수를 히트맵으로 표시</p>
+        <p>• 빨간색: 양의 상관관계 / 파란색: 음의 상관관계</p>
+        <p>• 색이 진할수록 상관관계가 강함 (±0.7 이상: 강함, ±0.4~0.7: 중간)</p>
+        <br>
+        <p><strong>2. 시차(Lag) 분석:</strong></p>
+        <p>• 선행지표가 며칠 후에 후행지표에 영향을 미치는지 분석</p>
+        <p>• 예: "유가가 3일 전에 움직이면 SMP가 따라서 움직인다"</p>
+        <p>• 최적 시차와 상관계수를 자동으로 계산</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div class="example-box">
+        <strong>💼 활용 예시: 시장 예측</strong><br><br>
+        <strong>분석 결과:</strong> 두바이유 → 육지 SMP, 최적 시차 3일, 상관계수 0.72<br><br>
+        <strong>해석:</strong> "두바이유가 상승하면 3일 후 SMP도 상승하는 경향이 있습니다 (강한 양의 상관관계).
+        오늘 두바이유가 5% 급등했으니, 3일 후 SMP 상승을 예상하고 
+        현물 전력 판매 계약 협상을 서두르는 게 좋겠습니다."
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div class="tip-box">
+        <strong>💡 활용 팁</strong><br>
+        • 신재생 투자자가 가장 많이 보는 조합: 두바이유 → SMP, 환율 → SMP<br>
+        • 상관계수 0.7 이상이면 예측에 활용 가치가 높습니다<br>
+        • 시차가 0일이면 동시에 움직이는 것으로, 예측보다는 확인용입니다
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+        
+        # 4. 예측 분석 탭
+        st.markdown("### 6️⃣ 🎯 예측 분석 탭")
+        st.markdown("""
+        <div class="manual-section">
+        <h4>기능 설명</h4>
+        <p>• <strong>회귀분석:</strong> 선행지표들을 이용해 후행지표 값을 예측하는 모델</p>
+        <p>• <strong>R² (설명력):</strong> 모델이 실제 데이터를 얼마나 잘 설명하는지 (0~1, 높을수록 좋음)</p>
+        <p>• <strong>MAE (평균 오차):</strong> 예측값과 실제값의 평균적인 차이</p>
+        <p>• <strong>변수 중요도:</strong> 어떤 설명 변수가 예측에 가장 큰 영향을 미치는지</p>
+        <br>
+        <p><strong>권장 조합:</strong></p>
+        <p>• SMP 예측: 두바이유 + 달러환율 + 국고채 → R² 0.6~0.7 기대</p>
+        <p>• 국고채 예측: IRS + 달러환율 → R² 0.8 이상 기대</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div class="example-box">
+        <strong>💼 활용 예시: 수익 전망 보고</strong><br><br>
+        <strong>분석:</strong> SMP 예측 모델 (설명변수: 두바이유, 달러환율)<br>
+        <strong>결과:</strong> R² = 0.68, 현재 예측값 102.5원/kWh (실제 98.8원/kWh)<br><br>
+        <strong>보고:</strong> "회귀모델 기준 SMP가 현재 저평가 상태입니다. 
+        모델 예측값(102.5원)과 실제값(98.8원) 차이가 있어, 
+        단기적으로 SMP 상승 여력이 있는 것으로 판단됩니다.
+        신재생 발전자산 실적이 다음 분기에 개선될 것으로 전망합니다."
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div class="tip-box">
+        <strong>💡 활용 팁</strong><br>
+        • R² 0.5 이상이면 참고용으로 활용 가능, 0.7 이상이면 신뢰도 높음<br>
+        • 학습 기간을 1년으로 설정하면 계절성이 반영됩니다<br>
+        • 예측값이 실제값보다 높으면 저평가, 낮으면 고평가 상태
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+        
+        # 5. 데이터 탭
+        st.markdown("### 7️⃣ 📋 데이터 탭")
+        st.markdown("""
+        <div class="manual-section">
+        <h4>기능 설명</h4>
+        <p>• 원본 데이터 조회 및 필터링</p>
+        <p>• 날짜 범위, 카테고리별 필터링 가능</p>
+        <p>• CSV 다운로드 기능 (별도 분석용)</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+
+# 6. 수익성 시뮬레이터 탭
         st.markdown("### 3️⃣ 🌱 수익성 시뮬레이터 탭")
         st.markdown("""
         <div class="manual-section">
@@ -869,7 +959,7 @@ def main():
         
         st.markdown("---")
         
-        # 4. 투자 시그널 탭
+        # 7. 투자 시그널 탭
         st.markdown("### 4️⃣ 🔔 투자 시그널 탭")
         st.markdown("""
         <div class="manual-section">
@@ -911,96 +1001,6 @@ def main():
         
         st.markdown("---")
         
-        # 5. 상관관계 분석 탭
-        st.markdown("### 5️⃣ 🔬 상관관계 분석 탭")
-        st.markdown("""
-        <div class="manual-section">
-        <h4>기능 설명</h4>
-        <p><strong>1. 상관관계 매트릭스:</strong></p>
-        <p>• 선택한 지표들 간의 상관계수를 히트맵으로 표시</p>
-        <p>• 빨간색: 양의 상관관계 / 파란색: 음의 상관관계</p>
-        <p>• 색이 진할수록 상관관계가 강함 (±0.7 이상: 강함, ±0.4~0.7: 중간)</p>
-        <br>
-        <p><strong>2. 시차(Lag) 분석:</strong></p>
-        <p>• 선행지표가 며칠 후에 후행지표에 영향을 미치는지 분석</p>
-        <p>• 예: "유가가 3일 전에 움직이면 SMP가 따라서 움직인다"</p>
-        <p>• 최적 시차와 상관계수를 자동으로 계산</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div class="example-box">
-        <strong>💼 활용 예시: 시장 예측</strong><br><br>
-        <strong>분석 결과:</strong> 두바이유 → 육지 SMP, 최적 시차 3일, 상관계수 0.72<br><br>
-        <strong>해석:</strong> "두바이유가 상승하면 3일 후 SMP도 상승하는 경향이 있습니다 (강한 양의 상관관계).
-        오늘 두바이유가 5% 급등했으니, 3일 후 SMP 상승을 예상하고 
-        현물 전력 판매 계약 협상을 서두르는 게 좋겠습니다."
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div class="tip-box">
-        <strong>💡 활용 팁</strong><br>
-        • 신재생 투자자가 가장 많이 보는 조합: 두바이유 → SMP, 환율 → SMP<br>
-        • 상관계수 0.7 이상이면 예측에 활용 가치가 높습니다<br>
-        • 시차가 0일이면 동시에 움직이는 것으로, 예측보다는 확인용입니다
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("---")
-        
-        # 6. 예측 분석 탭
-        st.markdown("### 6️⃣ 🎯 예측 분석 탭")
-        st.markdown("""
-        <div class="manual-section">
-        <h4>기능 설명</h4>
-        <p>• <strong>회귀분석:</strong> 선행지표들을 이용해 후행지표 값을 예측하는 모델</p>
-        <p>• <strong>R² (설명력):</strong> 모델이 실제 데이터를 얼마나 잘 설명하는지 (0~1, 높을수록 좋음)</p>
-        <p>• <strong>MAE (평균 오차):</strong> 예측값과 실제값의 평균적인 차이</p>
-        <p>• <strong>변수 중요도:</strong> 어떤 설명 변수가 예측에 가장 큰 영향을 미치는지</p>
-        <br>
-        <p><strong>권장 조합:</strong></p>
-        <p>• SMP 예측: 두바이유 + 달러환율 + 국고채 → R² 0.6~0.7 기대</p>
-        <p>• 국고채 예측: IRS + 달러환율 → R² 0.8 이상 기대</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div class="example-box">
-        <strong>💼 활용 예시: 수익 전망 보고</strong><br><br>
-        <strong>분석:</strong> SMP 예측 모델 (설명변수: 두바이유, 달러환율)<br>
-        <strong>결과:</strong> R² = 0.68, 현재 예측값 102.5원/kWh (실제 98.8원/kWh)<br><br>
-        <strong>보고:</strong> "회귀모델 기준 SMP가 현재 저평가 상태입니다. 
-        모델 예측값(102.5원)과 실제값(98.8원) 차이가 있어, 
-        단기적으로 SMP 상승 여력이 있는 것으로 판단됩니다.
-        신재생 발전자산 실적이 다음 분기에 개선될 것으로 전망합니다."
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div class="tip-box">
-        <strong>💡 활용 팁</strong><br>
-        • R² 0.5 이상이면 참고용으로 활용 가능, 0.7 이상이면 신뢰도 높음<br>
-        • 학습 기간을 1년으로 설정하면 계절성이 반영됩니다<br>
-        • 예측값이 실제값보다 높으면 저평가, 낮으면 고평가 상태
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("---")
-        
-        # 7. 데이터 탭
-        st.markdown("### 7️⃣ 📋 데이터 탭")
-        st.markdown("""
-        <div class="manual-section">
-        <h4>기능 설명</h4>
-        <p>• 원본 데이터 조회 및 필터링</p>
-        <p>• 날짜 범위, 카테고리별 필터링 가능</p>
-        <p>• CSV 다운로드 기능 (별도 분석용)</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("---")
-        
         # 8. FAQ
         st.markdown("### ❓ 자주 묻는 질문 (FAQ)")
         
@@ -1019,7 +1019,7 @@ def main():
         with st.expander("Q. 상관관계가 높으면 항상 예측이 맞나요?"):
             st.markdown("**A.** 아닙니다. 상관관계는 과거 데이터 기반이며, 미래에도 동일한 패턴이 유지된다는 보장이 없습니다. 특히 시장 구조 변화(정책 변경, 외부 충격 등) 시 상관관계가 깨질 수 있습니다.")
         
-        st.markdown("---")
+        st.markdown("---")        
         st.markdown("""
         <div style="text-align: center; color: #888; padding: 1rem;">
         📧 문의: 박연준(yjpark@ifasset.co.kr) | 📅 최종 업데이트: 2025.12
