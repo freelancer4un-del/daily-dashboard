@@ -411,19 +411,11 @@ def check_alerts(summary):
             
             if check_val >= threshold_val:
                 alerts.append({
-                    'category': category,
-                    'indicator': col_name,
-                    'change_pct': ind['change_pct'],
-                    'direction': ind['direction'],
-                    'icon': data['icon'],
-                    # 🔽 새로 추가: 이전/현재 값 + 포맷/단위
-                    'current': ind['value'],
-                    'previous': ind['previous'],
-                    'unit': ind['unit'],
-                    'fmt': ind['format'],
+                    'category': category, 'indicator': col_name,
+                    'change_pct': ind['change_pct'], 'direction': ind['direction'],
+                    'icon': data['icon']
                 })
     return alerts
-
 
 def format_value(value, fmt, unit=""):
     if pd.isna(value) or value is None:
@@ -696,11 +688,32 @@ def main():
     
     latest_date = df['날짜'].max()
     
-    # 사이드바 ...
+    # 사이드바
     with st.sidebar:
-        ...
+        st.markdown("## ⚙️ 설정")
+        
+        if st.button("🔄 데이터 새로고침", use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
+        
+        st.markdown("---")
+        st.markdown("### 📂 카테고리 필터")
+        categories = list(INDICATORS.keys())
+        selected_categories = st.multiselect("표시할 카테고리", categories, default=categories)
+        
+        st.markdown("---")
+        st.markdown("### 📅 차트 기간")
+        selected_period = st.selectbox("기간 선택", list(CHART_PERIODS.keys()), index=2)
+        
+        st.markdown("---")
+        st.markdown(f"""
+        ### 📋 데이터 정보
+        - **기준 날짜:** {latest_date.strftime('%Y-%m-%d')}
+        - **총 데이터:** {len(df):,}행
+        - **버전:** v5.0
+        """)
     
-    # 메인 헤더 ...
+    # 메인 헤더 (기준일 + 오늘 날짜)
     today = datetime.now()
     st.markdown(f"""
     <div class="main-header">
@@ -709,16 +722,13 @@ def main():
     </div>
     """, unsafe_allow_html=True)
     
-    # ✅ 여기서 summary 먼저 계산
     summary = get_summary(df)
-
-    # ✅ 그리고 같은 들여쓰기 레벨에서 급변동 알림 호출
+    
+    # 급변동 알림
+   # 급변동 알림
     alerts = check_alerts(summary)
     if alerts:
-        st.markdown(
-            f'<div class="alert-box"><h4>🚨 급변동 알림 ({len(alerts)}건) - 기준일 대비</h4></div>',
-            unsafe_allow_html=True
-        )
+        st.markdown(f'<div class="alert-box"><h4>🚨 급변동 알림 ({len(alerts)}건) - 기준일 대비</h4></div>', unsafe_allow_html=True)
         num_cols = 4
         num_rows = (len(alerts) + num_cols - 1) // num_cols
         for row in range(num_rows):
@@ -730,41 +740,13 @@ def main():
                     with cols[col_idx]:
                         direction = "▲" if alert['direction'] == 'up' else "▼"
                         color = "#00d26a" if alert['direction'] == 'up' else "#ff6b6b"
-
-                        prev_str = format_value(
-                            alert.get('previous'),
-                            alert.get('fmt', '{:,.2f}'),
-                            alert.get('unit', '')
-                        )
-                        curr_str = format_value(
-                            alert.get('current'),
-                            alert.get('fmt', '{:,.2f}'),
-                            alert.get('unit', '')
-                        )
-
                         st.markdown(f"""
                         <div class="alert-item" style="border-color: {color};">
-                            <div style="color: #888; font-size: 0.8rem;">
-                                {alert['icon']} {alert['category']}
-                            </div>
-                            <div style="color: #fff; font-weight: bold; margin-top: 2px;">
-                                {alert['indicator']}
-                            </div>
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 6px;">
-                                <div style="color: {color}; font-weight: bold; font-size: 0.95rem;">
-                                    {direction} {abs(alert['change_pct']):.2f}%
-                                </div>
-                                <div style="text-align: right; font-size: 0.75rem; line-height: 1.3;">
-                                    <div style="color:#aaaaaa;">전일: <span style="color:#ffffff;">{prev_str}</span></div>
-                                    <div style="color:#aaaaaa;">현재: <span style="color:#ffffff;">{curr_str}</span></div>
-                                </div>
-                            </div>
+                            <div style="color: #888; font-size: 0.8rem;">{alert['icon']} {alert['category']}</div>
+                            <div style="color: #fff; font-weight: bold;">{alert['indicator']}</div>
+                            <div style="color: {color}; font-weight: bold;">{direction} {abs(alert['change_pct']):.2f}%</div>
                         </div>
                         """, unsafe_allow_html=True)
-
-    # 👉 이 뒤에 탭 정의 (tab0, tab1, ...) 계속 이어지면 됨
-
-
 
     
     # 탭 (메뉴얼 탭 맨 앞에 추가)
