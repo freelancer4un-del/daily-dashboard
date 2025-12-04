@@ -667,7 +667,7 @@ def main():
         st.markdown("---")
         st.markdown(f"""
         ### 📋 데이터 정보
-        - **최신 날짜:** {latest_date.strftime('%Y-%m-%d')}
+        - **기준 날짜:** {latest_date.strftime('%Y-%m-%d')}
         - **총 데이터:** {len(df):,}행
         - **버전:** v5.0
         """)
@@ -676,7 +676,7 @@ def main():
     st.markdown(f"""
     <div class="main-header">
         <h1>🌱 친환경·인프라 투자 대시보드 v5.0</h1>
-        <p>📅 기준일: {latest_date.strftime('%Y년 %m월 %d일')} | 신재생에너지·순환경제·인프라 전문</p>
+        <p>📅 기준일: {latest_date.strftime('%Y년 %m월 %d일')} | IFAM </p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -685,7 +685,7 @@ def main():
     # 급변동 알림
     alerts = check_alerts(summary)
     if alerts:
-        st.markdown(f'<div class="alert-box"><h4>🚨 급변동 알림 ({len(alerts)}건) - 전일(직전 거래일) 대비</h4></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="alert-box"><h4>🚨 급변동 알림 ({len(alerts)}건) - 기준일 대비</h4></div>', unsafe_allow_html=True)
         num_cols = 4
         num_rows = (len(alerts) + num_cols - 1) // num_cols
         for row in range(num_rows):
