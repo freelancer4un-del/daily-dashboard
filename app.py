@@ -708,7 +708,7 @@ def main():
         st.markdown("---")
         st.markdown(f"""
         ### 📋 데이터 정보
-        - **최신 날짜:** {latest_date.strftime('%Y-%m-%d')}
+        - **기준 날짜:** {latest_date.strftime('%Y-%m-%d')}
         - **총 데이터:** {len(df):,}행
         - **버전:** v5.0
         """)
