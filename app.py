@@ -1279,7 +1279,7 @@ def main():
         with col2:
             lagging = st.selectbox("후행지표", KEY_INDICATORS, index=3, key="lg")
         with col3:
-            max_lag = st.slider("최대 시차", 1, 60, 30, key="ml")
+            max_lag = st.slider("최대 시차", 1, 365, 180, key="ml")
         
         if leading != lagging:
             lag_df = calculate_lagged_correlation(df, leading, lagging, max_lag)
