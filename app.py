@@ -832,7 +832,7 @@ def main():
         st.markdown("---")
         
         # 3. 상관관계 분석 탭
-        st.markdown("### 5️⃣ 🔬 상관관계 분석 탭")
+        st.markdown("### 3️⃣ 🔬 상관관계 분석 탭")
         st.markdown("""
         <div class="manual-section">
         <h4>기능 설명</h4>
@@ -870,7 +870,7 @@ def main():
         st.markdown("---")
         
         # 4. 예측 분석 탭
-        st.markdown("### 6️⃣ 🎯 예측 분석 탭")
+        st.markdown("### 4️⃣ 🎯 예측 분석 탭")
         st.markdown("""
         <div class="manual-section">
         <h4>기능 설명</h4>
@@ -909,7 +909,7 @@ def main():
         st.markdown("---")
         
         # 5. 데이터 탭
-        st.markdown("### 7️⃣ 📋 데이터 탭")
+        st.markdown("### 5️⃣ 📋 데이터 탭")
         st.markdown("""
         <div class="manual-section">
         <h4>기능 설명</h4>
@@ -922,7 +922,7 @@ def main():
         st.markdown("---")
 
 # 6. 수익성 시뮬레이터 탭
-        st.markdown("### 3️⃣ 🌱 수익성 시뮬레이터 탭")
+        st.markdown("### 6️⃣ 🌱 수익성 시뮬레이터 탭")
         st.markdown("""
         <div class="manual-section">
         <h4>기능 설명</h4>
@@ -960,7 +960,7 @@ def main():
         st.markdown("---")
         
         # 7. 투자 시그널 탭
-        st.markdown("### 4️⃣ 🔔 투자 시그널 탭")
+        st.markdown("### 7️⃣ 🔔 투자 시그널 탭")
         st.markdown("""
         <div class="manual-section">
         <h4>기능 설명</h4>
