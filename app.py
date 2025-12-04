@@ -288,20 +288,48 @@ def load_data():
         return None
 
 # =============================================================================
-# LNG 데이터 처리
+# LNG 데이터 처리 (월별 데이터 - 전월 대비 등락률)
 # =============================================================================
 def get_latest_lng_data(df):
     lng_cols = ['탱크로리용', '연료전지용']
     result = {}
     
     for col in lng_cols:
-        valid_data = df[df[col].notna()][['날짜', col]]
+        valid_data = df[df[col].notna()][['날짜', col]].copy()
         if len(valid_data) > 0:
-            latest = valid_data.iloc[-1]
-            prev = valid_data.iloc[-2] if len(valid_data) > 1 else latest
-            result[col] = {'value': latest[col], 'previous': prev[col], 'date': latest['날짜']}
+            # 월별로 그룹화하여 각 월의 마지막 값 가져오기
+            valid_data['년월'] = valid_data['날짜'].dt.to_period('M')
+            monthly_data = valid_data.groupby('년월').last().reset_index()
+            
+            if len(monthly_data) >= 2:
+                latest = monthly_data.iloc[-1]
+                prev = monthly_data.iloc[-2]
+                
+                # 전월 대비 등락 (원 단위 차이, Daily 탭과 동일하게)
+                change = latest[col] - prev[col]
+                
+                result[col] = {
+                    'value': latest[col], 
+                    'previous': prev[col], 
+                    'change': change,
+                    'date': latest['날짜'],
+                    'prev_month': str(prev['년월']),
+                    'curr_month': str(latest['년월'])
+                }
+            elif len(monthly_data) == 1:
+                latest = monthly_data.iloc[-1]
+                result[col] = {
+                    'value': latest[col], 
+                    'previous': None, 
+                    'change': None,
+                    'date': latest['날짜'],
+                    'prev_month': None,
+                    'curr_month': str(latest['년월'])
+                }
+            else:
+                result[col] = {'value': None, 'previous': None, 'change': None, 'date': None, 'prev_month': None, 'curr_month': None}
         else:
-            result[col] = {'value': None, 'previous': None, 'date': None}
+            result[col] = {'value': None, 'previous': None, 'change': None, 'date': None, 'prev_month': None, 'curr_month': None}
     return result
 
 # =============================================================================
@@ -325,19 +353,29 @@ def get_summary(df):
                 lng_info = lng_data[col_name]
                 current = lng_info['value']
                 prev = lng_info['previous']
+                change = lng_info['change']
                 
-                if current is not None and prev is not None and prev != 0:
-                    change = current - prev
-                    change_pct = (change / prev) * 100
+                if change is not None:
                     direction = 'up' if change > 0 else ('down' if change < 0 else 'neutral')
+                    # LNG는 전월 대비 원 단위 차이로 표시 (Daily 탭과 동일)
+                    change_pct = change  # 원 단위 차이를 그대로 사용
                 else:
-                    change, change_pct, direction = None, None, 'neutral'
+                    direction = 'neutral'
+                    change_pct = None
+                
+                # 월 표시 (예: "10월→11월")
+                if lng_info.get('prev_month') and lng_info.get('curr_month'):
+                    prev_m = lng_info['prev_month'].split('-')[1] if '-' in str(lng_info['prev_month']) else ''
+                    curr_m = lng_info['curr_month'].split('-')[1] if '-' in str(lng_info['curr_month']) else ''
+                    note = f"({prev_m}월→{curr_m}월)"
+                else:
+                    note = ""
                 
                 summary[category]['indicators'][col_name] = {
                     'value': current, 'previous': prev, 'change': change,
                     'change_pct': change_pct, 'direction': direction,
                     'unit': col_info['unit'], 'format': col_info['format'],
-                    'note': f"({lng_info['date'].strftime('%m월') if lng_info['date'] else ''})"
+                    'note': note, 'is_lng': True
                 }
             else:
                 current = latest.get(col_name)
@@ -387,7 +425,7 @@ def format_value(value, fmt, unit=""):
     except:
         return str(value)
 
-def get_change_html(change, change_pct, direction, is_rate=False):
+def get_change_html(change, change_pct, direction, is_rate=False, is_lng=False):
     if change is None:
         return '<span class="metric-change-neutral">-</span>'
     
@@ -396,6 +434,9 @@ def get_change_html(change, change_pct, direction, is_rate=False):
     
     if is_rate:
         return f'<span class="{css}">{arrow} {abs(change)*100:.1f}bp</span>'
+    elif is_lng:
+        # LNG는 원 단위 차이로 표시 (Daily 탭과 동일)
+        return f'<span class="{css}">{arrow} {abs(change):.2f}</span>'
     return f'<span class="{css}">{arrow} {abs(change_pct):.2f}%</span>'
 
 def create_metric_card(title, value, change_html, note=""):
@@ -672,11 +713,12 @@ def main():
         - **버전:** v5.0
         """)
     
-    # 메인 헤더
+    # 메인 헤더 (기준일 + 오늘 날짜)
+    today = datetime.now()
     st.markdown(f"""
     <div class="main-header">
         <h1>🌱 친환경·인프라 투자 대시보드 v5.0</h1>
-        <p>📅 기준일: {latest_date.strftime('%Y년 %m월 %d일')} | 신재생에너지·순환경제·인프라 전문</p>
+        <p>📅 기준일: {latest_date.strftime('%Y년 %m월 %d일')} | 🗓️ 오늘: {today.strftime('%Y년 %m월 %d일 %H:%M')} | 신재생에너지·순환경제·인프라 전문</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -1018,7 +1060,8 @@ def main():
             for i, (col_name, ind) in enumerate(data['indicators'].items()):
                 with cols[i % 4]:
                     value_str = format_value(ind['value'], ind['format'], ind['unit'])
-                    change_html = get_change_html(ind['change'], ind['change_pct'], ind['direction'], is_rate)
+                    is_lng = ind.get('is_lng', False)
+                    change_html = get_change_html(ind['change'], ind['change_pct'], ind['direction'], is_rate, is_lng)
                     note = ind.get('note', '')
                     st.markdown(create_metric_card(col_name, value_str, change_html, note), unsafe_allow_html=True)
     
