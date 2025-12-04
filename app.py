@@ -411,11 +411,19 @@ def check_alerts(summary):
             
             if check_val >= threshold_val:
                 alerts.append({
-                    'category': category, 'indicator': col_name,
-                    'change_pct': ind['change_pct'], 'direction': ind['direction'],
-                    'icon': data['icon']
+                    'category': category,
+                    'indicator': col_name,
+                    'change_pct': ind['change_pct'],
+                    'direction': ind['direction'],
+                    'icon': data['icon'],
+                    # 🔽 새로 추가: 이전/현재 값 + 포맷/단위
+                    'current': ind['value'],
+                    'previous': ind['previous'],
+                    'unit': ind['unit'],
+                    'fmt': ind['format'],
                 })
     return alerts
+
 
 def format_value(value, fmt, unit=""):
     if pd.isna(value) or value is None:
@@ -726,27 +734,57 @@ def main():
     
     # 급변동 알림
    # 급변동 알림
-    alerts = check_alerts(summary)
-    if alerts:
-        st.markdown(f'<div class="alert-box"><h4>🚨 급변동 알림 ({len(alerts)}건) - 기준일 대비</h4></div>', unsafe_allow_html=True)
-        num_cols = 4
-        num_rows = (len(alerts) + num_cols - 1) // num_cols
-        for row in range(num_rows):
-            cols = st.columns(num_cols)
-            for col_idx in range(num_cols):
-                alert_idx = row * num_cols + col_idx
-                if alert_idx < len(alerts):
-                    alert = alerts[alert_idx]
-                    with cols[col_idx]:
-                        direction = "▲" if alert['direction'] == 'up' else "▼"
-                        color = "#00d26a" if alert['direction'] == 'up' else "#ff6b6b"
-                        st.markdown(f"""
-                        <div class="alert-item" style="border-color: {color};">
-                            <div style="color: #888; font-size: 0.8rem;">{alert['icon']} {alert['category']}</div>
-                            <div style="color: #fff; font-weight: bold;">{alert['indicator']}</div>
-                            <div style="color: {color}; font-weight: bold;">{direction} {abs(alert['change_pct']):.2f}%</div>
+   # 급변동 알림
+alerts = check_alerts(summary)
+if alerts:
+    st.markdown(
+        f'<div class="alert-box"><h4>🚨 급변동 알림 ({len(alerts)}건) - 기준일 대비</h4></div>',
+        unsafe_allow_html=True
+    )
+    num_cols = 4
+    num_rows = (len(alerts) + num_cols - 1) // num_cols
+    for row in range(num_rows):
+        cols = st.columns(num_cols)
+        for col_idx in range(num_cols):
+            alert_idx = row * num_cols + col_idx
+            if alert_idx < len(alerts):
+                alert = alerts[alert_idx]
+                with cols[col_idx]:
+                    direction = "▲" if alert['direction'] == 'up' else "▼"
+                    color = "#00d26a" if alert['direction'] == 'up' else "#ff6b6b"
+
+                    # 🔽 전일/현재 값 포맷 (기존 format_value 재사용)
+                    prev_str = format_value(
+                        alert.get('previous'),
+                        alert.get('fmt', '{:,.2f}'),
+                        alert.get('unit', '')
+                    )
+                    curr_str = format_value(
+                        alert.get('current'),
+                        alert.get('fmt', '{:,.2f}'),
+                        alert.get('unit', '')
+                    )
+
+                    st.markdown(f"""
+                    <div class="alert-item" style="border-color: {color};">
+                        <div style="color: #888; font-size: 0.8rem;">
+                            {alert['icon']} {alert['category']}
                         </div>
-                        """, unsafe_allow_html=True)
+                        <div style="color: #fff; font-weight: bold; margin-top: 2px;">
+                            {alert['indicator']}
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 6px;">
+                            <div style="color: {color}; font-weight: bold; font-size: 0.95rem;">
+                                {direction} {abs(alert['change_pct']):.2f}%
+                            </div>
+                            <div style="text-align: right; font-size: 0.75rem; line-height: 1.3;">
+                                <div style="color:#aaaaaa;">전일: <span style="color:#ffffff;">{prev_str}</span></div>
+                                <div style="color:#aaaaaa;">현재: <span style="color:#ffffff;">{curr_str}</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
 
     
     # 탭 (메뉴얼 탭 맨 앞에 추가)
