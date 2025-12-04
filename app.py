@@ -714,6 +714,7 @@ def main():
         """)
     
     # 메인 헤더 (기준일 + 오늘 날짜)
+    # 메인 헤더 ...
     today = datetime.now()
     st.markdown(f"""
     <div class="main-header">
@@ -722,6 +723,7 @@ def main():
     </div>
     """, unsafe_allow_html=True)
     
+    # ✅ 여기서 summary 먼저 계산
     summary = get_summary(df)
     
       # 급변동 알림
