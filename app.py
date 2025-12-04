@@ -406,16 +406,25 @@ def check_alerts(summary):
             if ind['change_pct'] is None:
                 continue
             
+            # 금리/스왑은 bp 기준, 나머지는 % 기준
             check_val = abs(ind['change']) * 100 if is_rate else abs(ind['change_pct'])
             threshold_val = threshold * 100 if is_rate else threshold
             
             if check_val >= threshold_val:
                 alerts.append({
-                    'category': category, 'indicator': col_name,
-                    'change_pct': ind['change_pct'], 'direction': ind['direction'],
-                    'icon': data['icon']
+                    'category': category,
+                    'indicator': col_name,
+                    'change_pct': ind['change_pct'],
+                    'direction': ind['direction'],
+                    'icon': data['icon'],
+                    # 🔽 여기 추가된 부분들 때문에 전일/현재 값 표시 가능
+                    'current': ind.get('value'),
+                    'previous': ind.get('previous'),
+                    'fmt': ind.get('format', '{:,.2f}'),
+                    'unit': ind.get('unit', '')
                 })
     return alerts
+
 
 def format_value(value, fmt, unit=""):
     if pd.isna(value) or value is None:
