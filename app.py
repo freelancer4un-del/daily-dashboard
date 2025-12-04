@@ -1,5 +1,6 @@
 # =============================================================================
-# app.py - 통합 지표 모니터링 대시보드 (Streamlit Cloud 배포용)
+# app.py - 통합 지표 모니터링 대시보드 v2.0
+# 신규 기능: 선행/후행 상관관계 분석 툴
 # =============================================================================
 
 import streamlit as st
@@ -7,7 +8,9 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
+from scipy import stats
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -100,11 +103,20 @@ ALERT_THRESHOLDS = {
     "LNG": 5.0, "금리": 0.1, "스왑": 0.1,
 }
 
+# 상관관계 분석용 주요 지표
+KEY_INDICATORS = [
+    "달러환율", "유로환율", "위안화환율",
+    "육지 SMP", "제주 SMP",
+    "두바이유", "브렌트유", "WTI",
+    "국고채 (3년)", "국고채 (5년)", "국고채 (10년)",
+    "IRS (3년)", "IRS (5년)"
+]
+
 # =============================================================================
 # 페이지 설정
 # =============================================================================
 st.set_page_config(
-    page_title="📊 데일리 클리핑 대시보드",
+    page_title="📊 데일리 클리핑 대시보드 v2.0",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -159,6 +171,20 @@ st.markdown("""
         margin-bottom: 1rem;
     }
     .alert-box h4 { color: #e94560; margin: 0 0 0.5rem 0; }
+    
+    .insight-box {
+        background: linear-gradient(145deg, #1a3a5c 0%, #16213e 100%);
+        border-radius: 12px;
+        padding: 1.5rem;
+        border: 1px solid #3498db;
+        margin: 1rem 0;
+    }
+    .insight-box h4 { color: #3498db; margin: 0 0 0.8rem 0; }
+    .insight-box p { color: #ffffff; margin: 0.3rem 0; line-height: 1.6; }
+    
+    .correlation-strong { color: #00d26a; font-weight: bold; }
+    .correlation-moderate { color: #f39c12; font-weight: bold; }
+    .correlation-weak { color: #888888; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -188,6 +214,81 @@ def load_data():
         st.error(f"데이터 로드 오류: {str(e)}")
         return None
 
+# =============================================================================
+# 상관관계 분석 함수
+# =============================================================================
+def calculate_correlation_matrix(df, columns, days=365):
+    """지표 간 상관관계 매트릭스 계산"""
+    if days:
+        cutoff = df['날짜'].max() - timedelta(days=days)
+        df_filtered = df[df['날짜'] >= cutoff]
+    else:
+        df_filtered = df
+    
+    df_corr = df_filtered[columns].dropna()
+    return df_corr.corr()
+
+def calculate_lagged_correlation(df, leading_col, lagging_col, max_lag=30):
+    """
+    시차(Lag) 상관관계 계산
+    - leading_col: 선행 지표 (먼저 움직이는 지표)
+    - lagging_col: 후행 지표 (나중에 따라오는 지표)
+    - max_lag: 최대 시차 (일)
+    """
+    results = []
+    
+    df_clean = df[['날짜', leading_col, lagging_col]].dropna()
+    
+    for lag in range(0, max_lag + 1):
+        if lag == 0:
+            corr, p_value = stats.pearsonr(df_clean[leading_col], df_clean[lagging_col])
+        else:
+            # 선행지표를 lag일 앞으로 이동 (과거 선행지표 vs 현재 후행지표)
+            leading_shifted = df_clean[leading_col].iloc[:-lag].values
+            lagging_current = df_clean[lagging_col].iloc[lag:].values
+            
+            if len(leading_shifted) > 10:  # 최소 데이터 수 확인
+                corr, p_value = stats.pearsonr(leading_shifted, lagging_current)
+            else:
+                corr, p_value = np.nan, np.nan
+        
+        results.append({
+            'lag': lag,
+            'correlation': corr,
+            'p_value': p_value,
+            'significant': p_value < 0.05 if not np.isnan(p_value) else False
+        })
+    
+    return pd.DataFrame(results)
+
+def find_optimal_lag(lag_df):
+    """최적 시차 찾기 (상관계수 절대값이 가장 큰 시점)"""
+    valid_df = lag_df.dropna()
+    if len(valid_df) == 0:
+        return None
+    
+    idx = valid_df['correlation'].abs().idxmax()
+    return valid_df.loc[idx]
+
+def interpret_correlation(corr):
+    """상관계수 해석"""
+    abs_corr = abs(corr)
+    if abs_corr >= 0.7:
+        strength = "강한"
+        css_class = "correlation-strong"
+    elif abs_corr >= 0.4:
+        strength = "중간"
+        css_class = "correlation-moderate"
+    else:
+        strength = "약한"
+        css_class = "correlation-weak"
+    
+    direction = "양의" if corr > 0 else "음의"
+    return strength, direction, css_class
+
+# =============================================================================
+# 기존 함수들
+# =============================================================================
 def get_summary(df):
     if df is None or len(df) < 2:
         return {}
@@ -307,8 +408,8 @@ def main():
     # 메인 헤더
     st.markdown(f"""
     <div class="main-header">
-        <h1>📊 데일리 클리핑 통합 지표 대시보드</h1>
-        <p>📅 기준일: {latest_date.strftime('%Y년 %m월 %d일')}</p>
+        <h1>📊 데일리 클리핑 통합 지표 대시보드 v2.0</h1>
+        <p>📅 기준일: {latest_date.strftime('%Y년 %m월 %d일')} | 🆕 선행/후행 상관관계 분석 기능 추가</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -331,10 +432,12 @@ def main():
                 </div>
                 """, unsafe_allow_html=True)
     
-    # 탭
-    tab1, tab2, tab3 = st.tabs(["📈 지표 현황", "📊 차트 분석", "📋 데이터 테이블"])
+    # 탭 (상관관계 분석 탭 추가)
+    tab1, tab2, tab3, tab4 = st.tabs(["📈 지표 현황", "🔬 상관관계 분석", "📊 차트 분석", "📋 데이터 테이블"])
     
+    # =========================================================================
     # TAB 1: 지표 현황
+    # =========================================================================
     with tab1:
         for category in selected_categories:
             if category not in summary:
@@ -357,8 +460,212 @@ def main():
                     change_html = get_change_html(ind['change'], ind['change_pct'], ind['direction'], is_rate)
                     st.markdown(create_metric_card(col_name, value_str, change_html), unsafe_allow_html=True)
     
-    # TAB 2: 차트 분석
+    # =========================================================================
+    # TAB 2: 상관관계 분석 (신규)
+    # =========================================================================
     with tab2:
+        st.markdown("## 🔬 선행/후행 지표 상관관계 분석")
+        st.markdown("지표 간의 상관관계와 시차(Lag)를 분석하여 **선행지표 변화 → 후행지표 예측**에 활용합니다.")
+        
+        st.markdown("---")
+        
+        # ----- 섹션 1: 상관관계 히트맵 -----
+        st.markdown("### 📊 지표 간 상관관계 매트릭스")
+        
+        col1, col2 = st.columns([1, 3])
+        
+        with col1:
+            heatmap_period = st.selectbox(
+                "분석 기간",
+                ["3개월", "6개월", "1년", "전체"],
+                index=2,
+                key="heatmap_period"
+            )
+            
+            heatmap_indicators = st.multiselect(
+                "분석 지표 선택",
+                KEY_INDICATORS,
+                default=["달러환율", "육지 SMP", "두바이유", "국고채 (3년)", "IRS (3년)"],
+                key="heatmap_indicators"
+            )
+        
+        with col2:
+            if len(heatmap_indicators) >= 2:
+                days = CHART_PERIODS.get(heatmap_period)
+                corr_matrix = calculate_correlation_matrix(df, heatmap_indicators, days)
+                
+                fig_heatmap = px.imshow(
+                    corr_matrix,
+                    labels=dict(color="상관계수"),
+                    x=heatmap_indicators,
+                    y=heatmap_indicators,
+                    color_continuous_scale='RdBu_r',
+                    zmin=-1, zmax=1,
+                    text_auto='.2f'
+                )
+                
+                fig_heatmap.update_layout(
+                    template='plotly_dark',
+                    paper_bgcolor='rgba(22,33,62,0.8)',
+                    plot_bgcolor='rgba(22,33,62,0.8)',
+                    height=400,
+                    font=dict(size=10)
+                )
+                
+                st.plotly_chart(fig_heatmap, use_container_width=True)
+            else:
+                st.warning("2개 이상의 지표를 선택해주세요.")
+        
+        st.markdown("---")
+        
+        # ----- 섹션 2: 시차(Lag) 상관관계 분석 -----
+        st.markdown("### 🕐 시차(Lag) 상관관계 분석")
+        st.markdown("""
+        > **선행지표**가 며칠 전에 움직이면 **후행지표**가 따라오는지 분석합니다.
+        > 예: *"유가가 3일 전에 상승하면 SMP도 상승하는 경향이 있다"*
+        """)
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            leading_indicator = st.selectbox(
+                "🔵 선행지표 (먼저 움직이는 지표)",
+                KEY_INDICATORS,
+                index=KEY_INDICATORS.index("두바이유") if "두바이유" in KEY_INDICATORS else 0,
+                key="leading"
+            )
+        
+        with col2:
+            lagging_indicator = st.selectbox(
+                "🔴 후행지표 (따라오는 지표)",
+                KEY_INDICATORS,
+                index=KEY_INDICATORS.index("육지 SMP") if "육지 SMP" in KEY_INDICATORS else 1,
+                key="lagging"
+            )
+        
+        with col3:
+            max_lag = st.slider(
+                "최대 시차 (일)",
+                min_value=1,
+                max_value=60,
+                value=30,
+                key="max_lag"
+            )
+        
+        if leading_indicator != lagging_indicator:
+            # 시차 상관관계 계산
+            lag_df = calculate_lagged_correlation(df, leading_indicator, lagging_indicator, max_lag)
+            optimal = find_optimal_lag(lag_df)
+            
+            col1, col2 = st.columns([2, 1])
+            
+            with col1:
+                # 시차별 상관계수 차트
+                fig_lag = go.Figure()
+                
+                fig_lag.add_trace(go.Scatter(
+                    x=lag_df['lag'],
+                    y=lag_df['correlation'],
+                    mode='lines+markers',
+                    name='상관계수',
+                    line=dict(color='#3498db', width=2),
+                    marker=dict(size=6)
+                ))
+                
+                # 최적 시차 표시
+                if optimal is not None:
+                    fig_lag.add_vline(
+                        x=optimal['lag'],
+                        line_dash="dash",
+                        line_color="#e94560",
+                        annotation_text=f"최적 Lag: {int(optimal['lag'])}일"
+                    )
+                
+                # 기준선
+                fig_lag.add_hline(y=0, line_dash="dot", line_color="gray", opacity=0.5)
+                
+                fig_lag.update_layout(
+                    title=f"{leading_indicator} → {lagging_indicator} 시차별 상관계수",
+                    xaxis_title="시차 (일)",
+                    yaxis_title="상관계수",
+                    template='plotly_dark',
+                    paper_bgcolor='rgba(22,33,62,0.8)',
+                    plot_bgcolor='rgba(22,33,62,0.8)',
+                    height=350,
+                    yaxis=dict(range=[-1, 1])
+                )
+                
+                st.plotly_chart(fig_lag, use_container_width=True)
+            
+            with col2:
+                # 분석 결과 인사이트
+                if optimal is not None and not np.isnan(optimal['correlation']):
+                    strength, direction, css_class = interpret_correlation(optimal['correlation'])
+                    
+                    st.markdown(f"""
+                    <div class="insight-box">
+                        <h4>💡 분석 결과</h4>
+                        <p><strong>최적 시차:</strong> <span style="color: #e94560; font-size: 1.3rem;">{int(optimal['lag'])}일</span></p>
+                        <p><strong>상관계수:</strong> <span class="{css_class}">{optimal['correlation']:.3f}</span></p>
+                        <p><strong>해석:</strong> {strength} {direction} 상관관계</p>
+                        <p><strong>통계적 유의성:</strong> {'✅ 유의함 (p<0.05)' if optimal['significant'] else '⚠️ 유의하지 않음'}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # 해석 문장
+                    if optimal['lag'] > 0 and abs(optimal['correlation']) >= 0.3:
+                        if optimal['correlation'] > 0:
+                            interpretation = f"**{leading_indicator}**이(가) **{int(optimal['lag'])}일 전**에 상승하면, **{lagging_indicator}**도 상승하는 경향이 있습니다."
+                        else:
+                            interpretation = f"**{leading_indicator}**이(가) **{int(optimal['lag'])}일 전**에 상승하면, **{lagging_indicator}**은 하락하는 경향이 있습니다."
+                        
+                        st.info(f"📌 {interpretation}")
+                    elif optimal['lag'] == 0:
+                        st.info("📌 두 지표가 거의 동시에 움직입니다. (시차 없음)")
+                    else:
+                        st.warning("📌 뚜렷한 선행/후행 관계가 발견되지 않았습니다.")
+                else:
+                    st.warning("분석 결과를 계산할 수 없습니다.")
+        else:
+            st.warning("선행지표와 후행지표를 다르게 선택해주세요.")
+        
+        st.markdown("---")
+        
+        # ----- 섹션 3: 주요 선행/후행 관계 요약 -----
+        st.markdown("### 📋 주요 지표 쌍 분석 요약")
+        
+        # 자주 분석하는 지표 쌍
+        common_pairs = [
+            ("두바이유", "육지 SMP", "유가 → SMP"),
+            ("달러환율", "육지 SMP", "환율 → SMP"),
+            ("달러환율", "국고채 (3년)", "환율 → 국고채"),
+            ("WTI", "두바이유", "WTI → 두바이유"),
+            ("국고채 (3년)", "IRS (3년)", "국고채 → IRS"),
+        ]
+        
+        results = []
+        for leading, lagging, pair_name in common_pairs:
+            if leading in df.columns and lagging in df.columns:
+                lag_result = calculate_lagged_correlation(df, leading, lagging, 30)
+                opt = find_optimal_lag(lag_result)
+                if opt is not None and not np.isnan(opt['correlation']):
+                    results.append({
+                        '지표 쌍': pair_name,
+                        '선행지표': leading,
+                        '후행지표': lagging,
+                        '최적 시차(일)': int(opt['lag']),
+                        '상관계수': f"{opt['correlation']:.3f}",
+                        '유의성': '✅' if opt['significant'] else '⚠️'
+                    })
+        
+        if results:
+            df_results = pd.DataFrame(results)
+            st.dataframe(df_results, use_container_width=True, hide_index=True)
+        
+    # =========================================================================
+    # TAB 3: 차트 분석
+    # =========================================================================
+    with tab3:
         st.markdown("### 📈 지표 추이 차트")
         
         col1, col2 = st.columns([1, 3])
@@ -429,8 +736,10 @@ def main():
             )
             st.plotly_chart(fig2, use_container_width=True)
     
-    # TAB 3: 데이터 테이블
-    with tab3:
+    # =========================================================================
+    # TAB 4: 데이터 테이블
+    # =========================================================================
+    with tab4:
         st.markdown("### 📋 원본 데이터 조회")
         
         col1, col2 = st.columns(2)
@@ -460,7 +769,7 @@ def main():
     st.markdown("---")
     st.markdown("""
     <div style="text-align: center; color: #666; padding: 1rem;">
-        📊 데일리 클리핑 통합 지표 대시보드 | 데이터 출처: 서울외국환중개, 신재생 원스톱 포털, 한국석유공사, 한국가스공사, 경제통계시스템
+        📊 데일리 클리핑 통합 지표 대시보드 v2.0 | 데이터 출처: 서울외국환중개, 신재생 원스톱 포털, 한국석유공사, 한국가스공사, 경제통계시스템
     </div>
     """, unsafe_allow_html=True)
 
