@@ -1,6 +1,6 @@
 # =============================================================================
-# app.py - 통합 지표 모니터링 대시보드 v3.0
-# 기능: 지표 현황, 상관관계 분석, 회귀분석 예측, 차트 분석
+# app.py - 통합 지표 모니터링 대시보드 v4.0
+# 친환경·순환경제·인프라 자산운용사 맞춤 버전
 # =============================================================================
 
 import streamlit as st
@@ -106,7 +106,6 @@ ALERT_THRESHOLDS = {
     "LNG": 5.0, "금리": 0.1, "스왑": 0.1,
 }
 
-# 상관관계 분석용 주요 지표
 KEY_INDICATORS = [
     "달러환율", "유로환율", "위안화환율",
     "육지 SMP", "제주 SMP",
@@ -119,8 +118,8 @@ KEY_INDICATORS = [
 # 페이지 설정
 # =============================================================================
 st.set_page_config(
-    page_title="📊 데일리 클리핑 대시보드 v3.0",
-    page_icon="📊",
+    page_title="📊 친환경·인프라 투자 대시보드 v4.0",
+    page_icon="🌱",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -135,7 +134,7 @@ st.markdown("""
         padding: 1.5rem 2rem;
         border-radius: 15px;
         margin-bottom: 2rem;
-        border: 1px solid #e94560;
+        border: 1px solid #27ae60;
     }
     .main-header h1 { color: #ffffff; font-size: 2rem; margin: 0; }
     .main-header p { color: #aaaaaa; margin: 0.5rem 0 0 0; font-size: 0.9rem; }
@@ -147,7 +146,7 @@ st.markdown("""
         border: 1px solid #0f3460;
         margin-bottom: 1rem;
     }
-    .metric-card:hover { border-color: #e94560; }
+    .metric-card:hover { border-color: #27ae60; }
     .metric-title { color: #888888; font-size: 0.85rem; margin-bottom: 0.5rem; }
     .metric-value { color: #ffffff; font-size: 1.5rem; font-weight: 700; margin-bottom: 0.3rem; }
     .metric-change-up { color: #00d26a; font-size: 0.9rem; font-weight: 600; }
@@ -202,6 +201,36 @@ st.markdown("""
     }
     .prediction-box h4 { color: #27ae60; margin: 0 0 0.8rem 0; }
     
+    .signal-buy {
+        background: linear-gradient(145deg, #1a4a3c 0%, #16213e 100%);
+        border: 2px solid #00d26a;
+        border-radius: 12px;
+        padding: 1rem;
+        text-align: center;
+    }
+    .signal-sell {
+        background: linear-gradient(145deg, #4a1a1a 0%, #16213e 100%);
+        border: 2px solid #ff6b6b;
+        border-radius: 12px;
+        padding: 1rem;
+        text-align: center;
+    }
+    .signal-hold {
+        background: linear-gradient(145deg, #3a3a1a 0%, #16213e 100%);
+        border: 2px solid #f39c12;
+        border-radius: 12px;
+        padding: 1rem;
+        text-align: center;
+    }
+    
+    .summary-card {
+        background: linear-gradient(145deg, #1a2a4a 0%, #16213e 100%);
+        border-radius: 12px;
+        padding: 1.5rem;
+        border: 1px solid #3498db;
+        margin: 0.5rem 0;
+    }
+    
     .correlation-strong { color: #00d26a; font-weight: bold; }
     .correlation-moderate { color: #f39c12; font-weight: bold; }
     .correlation-weak { color: #888888; }
@@ -235,152 +264,33 @@ def load_data():
         return None
 
 # =============================================================================
-# 상관관계 분석 함수
+# LNG 데이터 처리 (월별 데이터 대응)
 # =============================================================================
-def calculate_correlation_matrix(df, columns, days=365):
-    """지표 간 상관관계 매트릭스 계산"""
-    if days:
-        cutoff = df['날짜'].max() - timedelta(days=days)
-        df_filtered = df[df['날짜'] >= cutoff]
-    else:
-        df_filtered = df
+def get_latest_lng_data(df):
+    """LNG는 월별 데이터이므로 가장 최근 유효값을 가져옴"""
+    lng_cols = ['탱크로리용', '연료전지용']
+    result = {}
     
-    df_corr = df_filtered[columns].dropna()
-    return df_corr.corr()
-
-def calculate_lagged_correlation(df, leading_col, lagging_col, max_lag=30):
-    """시차(Lag) 상관관계 계산"""
-    results = []
-    df_clean = df[['날짜', leading_col, lagging_col]].dropna()
-    
-    for lag in range(0, max_lag + 1):
-        if lag == 0:
-            corr, p_value = stats.pearsonr(df_clean[leading_col], df_clean[lagging_col])
-        else:
-            leading_shifted = df_clean[leading_col].iloc[:-lag].values
-            lagging_current = df_clean[lagging_col].iloc[lag:].values
-            
-            if len(leading_shifted) > 10:
-                corr, p_value = stats.pearsonr(leading_shifted, lagging_current)
+    for col in lng_cols:
+        # 유효한 값이 있는 가장 최근 행 찾기
+        valid_data = df[df[col].notna()][['날짜', col]]
+        if len(valid_data) > 0:
+            latest = valid_data.iloc[-1]
+            # 이전 값 (전월)
+            if len(valid_data) > 1:
+                prev = valid_data.iloc[-2]
             else:
-                corr, p_value = np.nan, np.nan
-        
-        results.append({
-            'lag': lag,
-            'correlation': corr,
-            'p_value': p_value,
-            'significant': p_value < 0.05 if not np.isnan(p_value) else False
-        })
+                prev = latest
+            
+            result[col] = {
+                'value': latest[col],
+                'previous': prev[col],
+                'date': latest['날짜']
+            }
+        else:
+            result[col] = {'value': None, 'previous': None, 'date': None}
     
-    return pd.DataFrame(results)
-
-def find_optimal_lag(lag_df):
-    """최적 시차 찾기"""
-    valid_df = lag_df.dropna()
-    if len(valid_df) == 0:
-        return None
-    idx = valid_df['correlation'].abs().idxmax()
-    return valid_df.loc[idx]
-
-def interpret_correlation(corr):
-    """상관계수 해석"""
-    abs_corr = abs(corr)
-    if abs_corr >= 0.7:
-        strength = "강한"
-        css_class = "correlation-strong"
-    elif abs_corr >= 0.4:
-        strength = "중간"
-        css_class = "correlation-moderate"
-    else:
-        strength = "약한"
-        css_class = "correlation-weak"
-    
-    direction = "양의" if corr > 0 else "음의"
-    return strength, direction, css_class
-
-# =============================================================================
-# 회귀분석 예측 함수
-# =============================================================================
-def build_regression_model(df, target_col, feature_cols, train_days=365):
-    """
-    회귀 분석 모델 구축
-    - target_col: 예측 대상 (후행지표)
-    - feature_cols: 설명 변수들 (선행지표들)
-    - train_days: 학습 데이터 기간
-    """
-    # 데이터 준비
-    cutoff = df['날짜'].max() - timedelta(days=train_days)
-    df_train = df[df['날짜'] >= cutoff].copy()
-    
-    # 결측치 제거
-    cols_needed = [target_col] + feature_cols
-    df_clean = df_train[cols_needed].dropna()
-    
-    if len(df_clean) < 30:
-        return None, None, None, "데이터가 부족합니다 (최소 30개 필요)"
-    
-    X = df_clean[feature_cols].values
-    y = df_clean[target_col].values
-    
-    # 스케일링
-    scaler_X = StandardScaler()
-    scaler_y = StandardScaler()
-    
-    X_scaled = scaler_X.fit_transform(X)
-    y_scaled = scaler_y.fit_transform(y.reshape(-1, 1)).ravel()
-    
-    # 모델 학습
-    model = LinearRegression()
-    model.fit(X_scaled, y_scaled)
-    
-    # 예측 및 평가
-    y_pred_scaled = model.predict(X_scaled)
-    y_pred = scaler_y.inverse_transform(y_pred_scaled.reshape(-1, 1)).ravel()
-    
-    r2 = r2_score(y, y_pred)
-    mae = mean_absolute_error(y, y_pred)
-    
-    # 계수 정보
-    coef_info = []
-    for i, col in enumerate(feature_cols):
-        coef_info.append({
-            'feature': col,
-            'coefficient': model.coef_[i],
-            'importance': abs(model.coef_[i])
-        })
-    coef_df = pd.DataFrame(coef_info).sort_values('importance', ascending=False)
-    
-    return {
-        'model': model,
-        'scaler_X': scaler_X,
-        'scaler_y': scaler_y,
-        'r2': r2,
-        'mae': mae,
-        'coefficients': coef_df,
-        'y_actual': y,
-        'y_pred': y_pred,
-        'dates': df_train[df_train[target_col].notna()]['날짜'].iloc[-len(y):].values
-    }, X, y, None
-
-def predict_future(model_info, df, feature_cols, days_ahead=7):
-    """
-    미래 예측 (단순 추세 기반)
-    """
-    if model_info is None:
-        return None
-    
-    model = model_info['model']
-    scaler_X = model_info['scaler_X']
-    scaler_y = model_info['scaler_y']
-    
-    # 최근 데이터로 예측
-    latest = df[feature_cols].dropna().iloc[-1].values.reshape(1, -1)
-    latest_scaled = scaler_X.transform(latest)
-    
-    pred_scaled = model.predict(latest_scaled)
-    pred = scaler_y.inverse_transform(pred_scaled.reshape(-1, 1)).ravel()[0]
-    
-    return pred
+    return result
 
 # =============================================================================
 # 기존 함수들
@@ -393,26 +303,50 @@ def get_summary(df):
     previous = df.iloc[-2]
     summary = {}
     
+    # LNG 최신 데이터 가져오기
+    lng_data = get_latest_lng_data(df)
+    
     for category, info in INDICATORS.items():
         is_rate = category in ['금리', '스왑']
         summary[category] = {'icon': info['icon'], 'color': info['color'], 'indicators': {}}
         
         for col_name, col_info in info['columns'].items():
-            current = latest.get(col_name)
-            prev = previous.get(col_name)
-            
-            if pd.notna(current) and pd.notna(prev) and prev != 0:
-                change = current - prev
-                change_pct = (change / prev) * 100 if not is_rate else change * 100
-                direction = 'up' if change > 0 else ('down' if change < 0 else 'neutral')
+            # LNG는 별도 처리
+            if category == 'LNG' and col_name in lng_data:
+                lng_info = lng_data[col_name]
+                current = lng_info['value']
+                prev = lng_info['previous']
+                
+                if current is not None and prev is not None and prev != 0:
+                    change = current - prev
+                    change_pct = (change / prev) * 100
+                    direction = 'up' if change > 0 else ('down' if change < 0 else 'neutral')
+                else:
+                    change, change_pct, direction = None, None, 'neutral'
+                
+                summary[category]['indicators'][col_name] = {
+                    'value': current, 'previous': prev, 'change': change,
+                    'change_pct': change_pct, 'direction': direction,
+                    'unit': col_info['unit'], 'format': col_info['format'],
+                    'note': f"({lng_info['date'].strftime('%m월') if lng_info['date'] else ''})"
+                }
             else:
-                change, change_pct, direction = None, None, 'neutral'
-            
-            summary[category]['indicators'][col_name] = {
-                'value': current, 'previous': prev, 'change': change,
-                'change_pct': change_pct, 'direction': direction,
-                'unit': col_info['unit'], 'format': col_info['format']
-            }
+                current = latest.get(col_name)
+                prev = previous.get(col_name)
+                
+                if pd.notna(current) and pd.notna(prev) and prev != 0:
+                    change = current - prev
+                    change_pct = (change / prev) * 100 if not is_rate else change * 100
+                    direction = 'up' if change > 0 else ('down' if change < 0 else 'neutral')
+                else:
+                    change, change_pct, direction = None, None, 'neutral'
+                
+                summary[category]['indicators'][col_name] = {
+                    'value': current, 'previous': prev, 'change': change,
+                    'change_pct': change_pct, 'direction': direction,
+                    'unit': col_info['unit'], 'format': col_info['format'],
+                    'note': ''
+                }
     
     return summary
 
@@ -456,14 +390,287 @@ def get_change_html(change, change_pct, direction, is_rate=False):
         return f'<span class="{css}">{arrow} {abs(change)*100:.1f}bp</span>'
     return f'<span class="{css}">{arrow} {abs(change_pct):.2f}%</span>'
 
-def create_metric_card(title, value, change_html):
+def create_metric_card(title, value, change_html, note=""):
+    note_html = f'<div style="color: #666; font-size: 0.75rem;">{note}</div>' if note else ''
     return f"""
     <div class="metric-card">
         <div class="metric-title">{title}</div>
         <div class="metric-value">{value}</div>
         <div>{change_html}</div>
+        {note_html}
     </div>
     """
+
+# =============================================================================
+# 상관관계 분석 함수
+# =============================================================================
+def calculate_correlation_matrix(df, columns, days=365):
+    if days:
+        cutoff = df['날짜'].max() - timedelta(days=days)
+        df_filtered = df[df['날짜'] >= cutoff]
+    else:
+        df_filtered = df
+    df_corr = df_filtered[columns].dropna()
+    return df_corr.corr()
+
+def calculate_lagged_correlation(df, leading_col, lagging_col, max_lag=30):
+    results = []
+    df_clean = df[['날짜', leading_col, lagging_col]].dropna()
+    
+    for lag in range(0, max_lag + 1):
+        if lag == 0:
+            corr, p_value = stats.pearsonr(df_clean[leading_col], df_clean[lagging_col])
+        else:
+            leading_shifted = df_clean[leading_col].iloc[:-lag].values
+            lagging_current = df_clean[lagging_col].iloc[lag:].values
+            if len(leading_shifted) > 10:
+                corr, p_value = stats.pearsonr(leading_shifted, lagging_current)
+            else:
+                corr, p_value = np.nan, np.nan
+        results.append({'lag': lag, 'correlation': corr, 'p_value': p_value,
+                       'significant': p_value < 0.05 if not np.isnan(p_value) else False})
+    return pd.DataFrame(results)
+
+def find_optimal_lag(lag_df):
+    valid_df = lag_df.dropna()
+    if len(valid_df) == 0:
+        return None
+    idx = valid_df['correlation'].abs().idxmax()
+    return valid_df.loc[idx]
+
+def interpret_correlation(corr):
+    abs_corr = abs(corr)
+    if abs_corr >= 0.7:
+        return "강한", "양의" if corr > 0 else "음의", "correlation-strong"
+    elif abs_corr >= 0.4:
+        return "중간", "양의" if corr > 0 else "음의", "correlation-moderate"
+    return "약한", "양의" if corr > 0 else "음의", "correlation-weak"
+
+# =============================================================================
+# 회귀분석 예측 함수
+# =============================================================================
+def build_regression_model(df, target_col, feature_cols, train_days=365):
+    cutoff = df['날짜'].max() - timedelta(days=train_days) if train_days else df['날짜'].min()
+    df_train = df[df['날짜'] >= cutoff].copy()
+    
+    cols_needed = [target_col] + feature_cols
+    df_clean = df_train[cols_needed].dropna()
+    
+    if len(df_clean) < 30:
+        return None, None, None, "데이터가 부족합니다 (최소 30개 필요)"
+    
+    X = df_clean[feature_cols].values
+    y = df_clean[target_col].values
+    
+    scaler_X = StandardScaler()
+    scaler_y = StandardScaler()
+    
+    X_scaled = scaler_X.fit_transform(X)
+    y_scaled = scaler_y.fit_transform(y.reshape(-1, 1)).ravel()
+    
+    model = LinearRegression()
+    model.fit(X_scaled, y_scaled)
+    
+    y_pred_scaled = model.predict(X_scaled)
+    y_pred = scaler_y.inverse_transform(y_pred_scaled.reshape(-1, 1)).ravel()
+    
+    r2 = r2_score(y, y_pred)
+    mae = mean_absolute_error(y, y_pred)
+    
+    coef_info = [{'feature': col, 'coefficient': model.coef_[i], 'importance': abs(model.coef_[i])}
+                 for i, col in enumerate(feature_cols)]
+    coef_df = pd.DataFrame(coef_info).sort_values('importance', ascending=False)
+    
+    return {
+        'model': model, 'scaler_X': scaler_X, 'scaler_y': scaler_y,
+        'r2': r2, 'mae': mae, 'coefficients': coef_df,
+        'y_actual': y, 'y_pred': y_pred,
+        'dates': df_train[df_train[target_col].notna()]['날짜'].iloc[-len(y):].values
+    }, X, y, None
+
+def predict_future(model_info, df, feature_cols):
+    if model_info is None:
+        return None
+    latest = df[feature_cols].dropna().iloc[-1].values.reshape(1, -1)
+    latest_scaled = model_info['scaler_X'].transform(latest)
+    pred_scaled = model_info['model'].predict(latest_scaled)
+    return model_info['scaler_y'].inverse_transform(pred_scaled.reshape(-1, 1)).ravel()[0]
+
+# =============================================================================
+# 신재생에너지 수익성 시뮬레이터
+# =============================================================================
+def calculate_renewable_revenue(smp, rec_price, capacity_mw, cf=0.15, rec_weight=1.0):
+    """
+    신재생에너지 발전 수익 계산
+    - smp: 계통한계가격 (원/kWh)
+    - rec_price: REC 가격 (원/REC)
+    - capacity_mw: 설비용량 (MW)
+    - cf: 이용률 (Capacity Factor, 태양광 기본 15%)
+    - rec_weight: REC 가중치 (태양광 기본 1.0)
+    """
+    # 연간 발전량 (MWh)
+    annual_generation = capacity_mw * 1000 * 24 * 365 * cf / 1000  # MWh
+    
+    # SMP 수익
+    smp_revenue = annual_generation * smp * 1000  # 원
+    
+    # REC 수익 (1MWh = 1REC)
+    rec_count = annual_generation * rec_weight
+    rec_revenue = rec_count * rec_price
+    
+    # 총 수익
+    total_revenue = smp_revenue + rec_revenue
+    
+    return {
+        'annual_generation_mwh': annual_generation,
+        'smp_revenue': smp_revenue,
+        'rec_revenue': rec_revenue,
+        'total_revenue': total_revenue,
+        'revenue_per_mw': total_revenue / capacity_mw if capacity_mw > 0 else 0
+    }
+
+# =============================================================================
+# 투자 시그널 생성
+# =============================================================================
+def generate_investment_signals(df, days=30):
+    """투자 의사결정 시그널 생성"""
+    signals = []
+    
+    if len(df) < days:
+        return signals
+    
+    latest = df.iloc[-1]
+    
+    # 최근 N일 데이터
+    recent = df.tail(days)
+    
+    # 1. SMP 시그널
+    smp_current = latest.get('육지 SMP')
+    smp_avg = recent['육지 SMP'].mean()
+    smp_std = recent['육지 SMP'].std()
+    
+    if pd.notna(smp_current) and pd.notna(smp_avg):
+        if smp_current < smp_avg - smp_std:
+            signals.append({
+                'category': '신재생에너지',
+                'indicator': 'SMP',
+                'signal': 'BUY',
+                'reason': f'SMP가 30일 평균 대비 저점 (현재: {smp_current:.1f}, 평균: {smp_avg:.1f})',
+                'strength': 'STRONG' if smp_current < smp_avg - 2*smp_std else 'MODERATE'
+            })
+        elif smp_current > smp_avg + smp_std:
+            signals.append({
+                'category': '신재생에너지',
+                'indicator': 'SMP',
+                'signal': 'SELL',
+                'reason': f'SMP가 30일 평균 대비 고점 (현재: {smp_current:.1f}, 평균: {smp_avg:.1f})',
+                'strength': 'STRONG' if smp_current > smp_avg + 2*smp_std else 'MODERATE'
+            })
+    
+    # 2. REC 시그널
+    rec_current = latest.get('육지 가격')
+    rec_avg = recent['육지 가격'].mean()
+    rec_std = recent['육지 가격'].std()
+    
+    if pd.notna(rec_current) and pd.notna(rec_avg) and rec_std > 0:
+        if rec_current < rec_avg - rec_std:
+            signals.append({
+                'category': '신재생에너지',
+                'indicator': 'REC',
+                'signal': 'BUY',
+                'reason': f'REC 가격 저점 매수 기회 (현재: {rec_current:,.0f}, 평균: {rec_avg:,.0f})',
+                'strength': 'STRONG' if rec_current < rec_avg - 2*rec_std else 'MODERATE'
+            })
+    
+    # 3. 금리 시그널 (인프라 투자)
+    rate_current = latest.get('국고채 (3년)')
+    rate_avg = recent['국고채 (3년)'].mean()
+    
+    if pd.notna(rate_current) and pd.notna(rate_avg):
+        if rate_current > rate_avg + 0.1:
+            signals.append({
+                'category': '인프라',
+                'indicator': '금리',
+                'signal': 'HOLD',
+                'reason': f'금리 상승 중 - 신규 차입 주의 (현재: {rate_current:.2f}%, 평균: {rate_avg:.2f}%)',
+                'strength': 'MODERATE'
+            })
+        elif rate_current < rate_avg - 0.1:
+            signals.append({
+                'category': '인프라',
+                'indicator': '금리',
+                'signal': 'BUY',
+                'reason': f'금리 하락 - 차입 적기 (현재: {rate_current:.2f}%, 평균: {rate_avg:.2f}%)',
+                'strength': 'MODERATE'
+            })
+    
+    # 4. 환율 시그널 (해외 투자)
+    fx_current = latest.get('달러환율')
+    fx_avg = recent['달러환율'].mean()
+    fx_std = recent['달러환율'].std()
+    
+    if pd.notna(fx_current) and pd.notna(fx_avg) and fx_std > 0:
+        if fx_current > fx_avg + fx_std:
+            signals.append({
+                'category': '해외투자',
+                'indicator': '환율',
+                'signal': 'HOLD',
+                'reason': f'원화 약세 - 해외 신규 투자 주의 (현재: {fx_current:,.0f}원)',
+                'strength': 'MODERATE'
+            })
+        elif fx_current < fx_avg - fx_std:
+            signals.append({
+                'category': '해외투자',
+                'indicator': '환율',
+                'signal': 'BUY',
+                'reason': f'원화 강세 - 해외 투자 적기 (현재: {fx_current:,.0f}원)',
+                'strength': 'MODERATE'
+            })
+    
+    return signals
+
+# =============================================================================
+# 시장 트렌드 요약
+# =============================================================================
+def generate_market_summary(df, days=7):
+    """주간 시장 트렌드 요약"""
+    if len(df) < days:
+        return None
+    
+    recent = df.tail(days)
+    prev_period = df.iloc[-(days*2):-days] if len(df) >= days*2 else df.head(days)
+    
+    summary = {}
+    
+    indicators = {
+        '달러환율': {'name': '달러/원 환율', 'unit': '원', 'format': '{:,.1f}'},
+        '육지 SMP': {'name': 'SMP (육지)', 'unit': '원/kWh', 'format': '{:,.1f}'},
+        '육지 가격': {'name': 'REC 가격', 'unit': '원', 'format': '{:,.0f}'},
+        '두바이유': {'name': '두바이유', 'unit': '$/배럴', 'format': '{:,.1f}'},
+        '국고채 (3년)': {'name': '국고채 3년', 'unit': '%', 'format': '{:,.2f}'},
+    }
+    
+    for col, info in indicators.items():
+        current_avg = recent[col].mean()
+        prev_avg = prev_period[col].mean()
+        current_last = recent[col].iloc[-1]
+        
+        if pd.notna(current_avg) and pd.notna(prev_avg) and prev_avg != 0:
+            change_pct = (current_avg - prev_avg) / prev_avg * 100
+            trend = '상승' if change_pct > 0.5 else ('하락' if change_pct < -0.5 else '보합')
+            
+            summary[col] = {
+                'name': info['name'],
+                'current': current_last,
+                'avg': current_avg,
+                'prev_avg': prev_avg,
+                'change_pct': change_pct,
+                'trend': trend,
+                'unit': info['unit'],
+                'format': info['format']
+            }
+    
+    return summary
 
 # =============================================================================
 # 메인 앱
@@ -504,24 +711,19 @@ def main():
     # 메인 헤더
     st.markdown(f"""
     <div class="main-header">
-        <h1>📊 데일리 클리핑 통합 지표 대시보드 v3.0</h1>
-        <p>📅 기준일: {latest_date.strftime('%Y년 %m월 %d일')} | 🆕 회귀분석 예측 기능 추가</p>
+        <h1>🌱 친환경·인프라 투자 대시보드 v4.0</h1>
+        <p>📅 기준일: {latest_date.strftime('%Y년 %m월 %d일')} | 신재생에너지·순환경제·인프라 전문</p>
     </div>
     """, unsafe_allow_html=True)
     
     summary = get_summary(df)
     
-    # =========================================================================
-    # 급변동 알림 (전체 표시)
-    # =========================================================================
+    # 급변동 알림
     alerts = check_alerts(summary)
     if alerts:
         st.markdown(f'<div class="alert-box"><h4>🚨 급변동 알림 ({len(alerts)}건)</h4></div>', unsafe_allow_html=True)
-        
-        # 알림 전체를 스크롤 가능한 영역에 표시
         num_cols = 4
-        num_rows = (len(alerts) + num_cols - 1) // num_cols  # 올림 나눗셈
-        
+        num_rows = (len(alerts) + num_cols - 1) // num_cols
         for row in range(num_rows):
             cols = st.columns(num_cols)
             for col_idx in range(num_cols):
@@ -538,16 +740,38 @@ def main():
                             <div style="color: {color}; font-weight: bold;">{direction} {abs(alert['change_pct']):.2f}%</div>
                         </div>
                         """, unsafe_allow_html=True)
-        
-        st.markdown("<br>", unsafe_allow_html=True)
     
-    # 탭 (예측 탭 추가)
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["📈 지표 현황", "🔬 상관관계 분석", "🎯 예측 분석", "📊 차트 분석", "📋 데이터 테이블"])
+    # 탭
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+        "📈 지표 현황", "🌱 수익성 시뮬레이터", "🔔 투자 시그널",
+        "🔬 상관관계 분석", "🎯 예측 분석", "📋 데이터"
+    ])
     
     # =========================================================================
     # TAB 1: 지표 현황
     # =========================================================================
     with tab1:
+        # 시장 트렌드 요약
+        st.markdown("### 📊 주간 시장 트렌드")
+        market_summary = generate_market_summary(df, days=7)
+        
+        if market_summary:
+            cols = st.columns(5)
+            for i, (col_name, data) in enumerate(market_summary.items()):
+                with cols[i % 5]:
+                    trend_color = "#00d26a" if data['trend'] == '상승' else ("#ff6b6b" if data['trend'] == '하락' else "#888")
+                    trend_arrow = "↑" if data['trend'] == '상승' else ("↓" if data['trend'] == '하락' else "→")
+                    st.markdown(f"""
+                    <div class="summary-card">
+                        <div style="color: #888; font-size: 0.8rem;">{data['name']}</div>
+                        <div style="color: #fff; font-size: 1.3rem; font-weight: bold;">{data['format'].format(data['current'])} {data['unit']}</div>
+                        <div style="color: {trend_color};">{trend_arrow} {data['trend']} ({data['change_pct']:+.1f}%)</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+        
+        # 카테고리별 지표
         for category in selected_categories:
             if category not in summary:
                 continue
@@ -567,35 +791,211 @@ def main():
                 with cols[i % 4]:
                     value_str = format_value(ind['value'], ind['format'], ind['unit'])
                     change_html = get_change_html(ind['change'], ind['change_pct'], ind['direction'], is_rate)
-                    st.markdown(create_metric_card(col_name, value_str, change_html), unsafe_allow_html=True)
+                    note = ind.get('note', '')
+                    st.markdown(create_metric_card(col_name, value_str, change_html, note), unsafe_allow_html=True)
     
     # =========================================================================
-    # TAB 2: 상관관계 분석
+    # TAB 2: 수익성 시뮬레이터
     # =========================================================================
     with tab2:
-        st.markdown("## 🔬 선행/후행 지표 상관관계 분석")
-        st.markdown("지표 간의 상관관계와 시차(Lag)를 분석하여 **선행지표 변화 → 후행지표 예측**에 활용합니다.")
+        st.markdown("## 🌱 신재생에너지 수익성 시뮬레이터")
+        st.markdown("SMP와 REC 가격 시나리오별 예상 수익을 계산합니다.")
         
+        col1, col2 = st.columns([1, 2])
+        
+        with col1:
+            st.markdown("### ⚙️ 프로젝트 설정")
+            
+            project_type = st.selectbox("발전 유형", ["태양광", "풍력(육상)", "풍력(해상)", "연료전지", "바이오"])
+            
+            # 유형별 기본값
+            defaults = {
+                "태양광": {"cf": 0.15, "rec_weight": 1.0},
+                "풍력(육상)": {"cf": 0.25, "rec_weight": 1.0},
+                "풍력(해상)": {"cf": 0.30, "rec_weight": 2.0},
+                "연료전지": {"cf": 0.85, "rec_weight": 2.0},
+                "바이오": {"cf": 0.80, "rec_weight": 1.5},
+            }
+            
+            capacity = st.number_input("설비용량 (MW)", min_value=0.1, max_value=1000.0, value=10.0, step=0.1)
+            cf = st.slider("이용률 (%)", 5, 95, int(defaults[project_type]["cf"]*100)) / 100
+            rec_weight = st.number_input("REC 가중치", min_value=0.5, max_value=5.0, 
+                                         value=defaults[project_type]["rec_weight"], step=0.1)
+            
+            st.markdown("### 📊 시나리오 설정")
+            
+            # 현재 값 가져오기
+            current_smp = df['육지 SMP'].dropna().iloc[-1] if len(df['육지 SMP'].dropna()) > 0 else 100
+            current_rec = df['육지 가격'].dropna().iloc[-1] if len(df['육지 가격'].dropna()) > 0 else 70000
+            
+            smp_scenarios = st.multiselect(
+                "SMP 시나리오 (원/kWh)",
+                [80, 100, 120, 150, 180, 200, 220],
+                default=[100, 150, 200]
+            )
+            
+            rec_scenario = st.number_input("REC 가격 (원/REC)", 
+                                           min_value=10000, max_value=200000, 
+                                           value=int(current_rec), step=1000)
+        
+        with col2:
+            st.markdown("### 📈 수익 시뮬레이션 결과")
+            
+            if smp_scenarios:
+                results = []
+                for smp in smp_scenarios:
+                    rev = calculate_renewable_revenue(smp, rec_scenario, capacity, cf, rec_weight)
+                    results.append({
+                        'SMP (원/kWh)': smp,
+                        '연간발전량 (MWh)': f"{rev['annual_generation_mwh']:,.0f}",
+                        'SMP 수익 (억원)': f"{rev['smp_revenue']/100000000:.2f}",
+                        'REC 수익 (억원)': f"{rev['rec_revenue']/100000000:.2f}",
+                        '총 수익 (억원)': f"{rev['total_revenue']/100000000:.2f}",
+                        'MW당 수익 (억원)': f"{rev['revenue_per_mw']/100000000:.2f}"
+                    })
+                
+                df_results = pd.DataFrame(results)
+                st.dataframe(df_results, use_container_width=True, hide_index=True)
+                
+                # 차트
+                fig = go.Figure()
+                
+                revenues = [calculate_renewable_revenue(smp, rec_scenario, capacity, cf, rec_weight)['total_revenue']/100000000 
+                           for smp in smp_scenarios]
+                
+                fig.add_trace(go.Bar(
+                    x=[f"SMP {s}" for s in smp_scenarios],
+                    y=revenues,
+                    marker_color='#27ae60',
+                    text=[f"{r:.1f}억" for r in revenues],
+                    textposition='outside'
+                ))
+                
+                fig.update_layout(
+                    title=f"{project_type} {capacity}MW 연간 예상 수익",
+                    yaxis_title="총 수익 (억원)",
+                    template='plotly_dark',
+                    paper_bgcolor='rgba(22,33,62,0.8)',
+                    plot_bgcolor='rgba(22,33,62,0.8)',
+                    height=350
+                )
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # 손익분기점 분석
+                st.markdown("### 💰 손익분기점 분석")
+                
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    capex_per_mw = st.number_input("CAPEX (억원/MW)", min_value=1.0, max_value=100.0, value=15.0, step=0.5)
+                with col_b:
+                    opex_rate = st.slider("OPEX (수익 대비 %)", 5, 30, 15)
+                
+                total_capex = capex_per_mw * capacity
+                current_rev = calculate_renewable_revenue(current_smp, rec_scenario, capacity, cf, rec_weight)
+                annual_opex = current_rev['total_revenue'] * opex_rate / 100
+                net_revenue = current_rev['total_revenue'] - annual_opex
+                
+                if net_revenue > 0:
+                    payback_years = total_capex * 100000000 / net_revenue
+                    st.success(f"📊 **현재 SMP({current_smp:.0f}원) 기준 투자회수 기간: {payback_years:.1f}년**")
+                else:
+                    st.error("현재 조건에서는 수익이 발생하지 않습니다.")
+    
+    # =========================================================================
+    # TAB 3: 투자 시그널
+    # =========================================================================
+    with tab3:
+        st.markdown("## 🔔 투자 의사결정 시그널")
+        st.markdown("시장 지표 분석을 통한 투자 타이밍 시그널입니다.")
+        
+        signals = generate_investment_signals(df, days=30)
+        
+        if signals:
+            for signal in signals:
+                if signal['signal'] == 'BUY':
+                    css_class = 'signal-buy'
+                    icon = '🟢'
+                    label = '매수 적기'
+                elif signal['signal'] == 'SELL':
+                    css_class = 'signal-sell'
+                    icon = '🔴'
+                    label = '매도 고려'
+                else:
+                    css_class = 'signal-hold'
+                    icon = '🟡'
+                    label = '관망'
+                
+                st.markdown(f"""
+                <div class="{css_class}">
+                    <div style="font-size: 2rem;">{icon}</div>
+                    <div style="color: #fff; font-size: 1.2rem; font-weight: bold;">{signal['category']} - {signal['indicator']}</div>
+                    <div style="color: #fff; font-size: 1.5rem; font-weight: bold;">{label}</div>
+                    <div style="color: #aaa; margin-top: 0.5rem;">{signal['reason']}</div>
+                    <div style="color: #888; font-size: 0.8rem;">신호 강도: {signal['strength']}</div>
+                </div>
+                """, unsafe_allow_html=True)
+                st.markdown("<br>", unsafe_allow_html=True)
+        else:
+            st.info("현재 특별한 투자 시그널이 없습니다. 시장이 안정적입니다.")
+        
+        # 종합 분석
         st.markdown("---")
+        st.markdown("### 📋 종합 시장 분석")
         
-        # ----- 섹션 1: 상관관계 히트맵 -----
-        st.markdown("### 📊 지표 간 상관관계 매트릭스")
+        latest = df.iloc[-1]
+        
+        analysis_points = []
+        
+        # SMP 분석
+        smp_current = latest.get('육지 SMP')
+        smp_avg_90d = df.tail(90)['육지 SMP'].mean()
+        if pd.notna(smp_current) and pd.notna(smp_avg_90d):
+            smp_vs_avg = (smp_current / smp_avg_90d - 1) * 100
+            if smp_vs_avg > 10:
+                analysis_points.append(f"⚡ SMP가 90일 평균 대비 **{smp_vs_avg:.1f}% 높음** - 신재생 발전 수익성 양호")
+            elif smp_vs_avg < -10:
+                analysis_points.append(f"⚡ SMP가 90일 평균 대비 **{abs(smp_vs_avg):.1f}% 낮음** - 수익성 주의 필요")
+        
+        # 금리 분석
+        rate_current = latest.get('국고채 (3년)')
+        rate_avg_90d = df.tail(90)['국고채 (3년)'].mean()
+        if pd.notna(rate_current) and pd.notna(rate_avg_90d):
+            if rate_current > rate_avg_90d + 0.2:
+                analysis_points.append(f"📊 금리 상승 추세 (현재 {rate_current:.2f}%) - 신규 PF 조달비용 상승 예상")
+            elif rate_current < rate_avg_90d - 0.2:
+                analysis_points.append(f"📊 금리 하락 추세 (현재 {rate_current:.2f}%) - PF 리파이낸싱 검토 적기")
+        
+        # 유가 분석
+        oil_current = latest.get('두바이유')
+        oil_avg_90d = df.tail(90)['두바이유'].mean()
+        if pd.notna(oil_current) and pd.notna(oil_avg_90d):
+            oil_vs_avg = (oil_current / oil_avg_90d - 1) * 100
+            if oil_vs_avg > 15:
+                analysis_points.append(f"🛢️ 유가 상승 추세 - SMP 상승 가능성, 연료전지 발전 비용 증가 예상")
+            elif oil_vs_avg < -15:
+                analysis_points.append(f"🛢️ 유가 하락 추세 - SMP 하락 가능성 주의")
+        
+        if analysis_points:
+            for point in analysis_points:
+                st.markdown(f"- {point}")
+        else:
+            st.info("시장이 전반적으로 안정적입니다.")
+    
+    # =========================================================================
+    # TAB 4: 상관관계 분석
+    # =========================================================================
+    with tab4:
+        st.markdown("## 🔬 선행/후행 지표 상관관계 분석")
         
         col1, col2 = st.columns([1, 3])
         
         with col1:
-            heatmap_period = st.selectbox(
-                "분석 기간",
-                ["3개월", "6개월", "1년", "전체"],
-                index=2,
-                key="heatmap_period"
-            )
-            
+            heatmap_period = st.selectbox("분석 기간", ["3개월", "6개월", "1년", "전체"], index=2, key="hm_period")
             heatmap_indicators = st.multiselect(
-                "분석 지표 선택",
+                "분석 지표",
                 KEY_INDICATORS,
-                default=["달러환율", "육지 SMP", "두바이유", "국고채 (3년)", "IRS (3년)"],
-                key="heatmap_indicators"
+                default=["달러환율", "육지 SMP", "두바이유", "국고채 (3년)"],
+                key="hm_ind"
             )
         
         with col2:
@@ -604,360 +1004,133 @@ def main():
                 corr_matrix = calculate_correlation_matrix(df, heatmap_indicators, days)
                 
                 fig_heatmap = px.imshow(
-                    corr_matrix,
-                    labels=dict(color="상관계수"),
-                    x=heatmap_indicators,
-                    y=heatmap_indicators,
-                    color_continuous_scale='RdBu_r',
-                    zmin=-1, zmax=1,
-                    text_auto='.2f'
+                    corr_matrix, labels=dict(color="상관계수"),
+                    x=heatmap_indicators, y=heatmap_indicators,
+                    color_continuous_scale='RdBu_r', zmin=-1, zmax=1, text_auto='.2f'
                 )
-                
                 fig_heatmap.update_layout(
                     template='plotly_dark',
                     paper_bgcolor='rgba(22,33,62,0.8)',
                     plot_bgcolor='rgba(22,33,62,0.8)',
-                    height=400,
-                    font=dict(size=10)
+                    height=400
                 )
-                
                 st.plotly_chart(fig_heatmap, use_container_width=True)
-            else:
-                st.warning("2개 이상의 지표를 선택해주세요.")
         
         st.markdown("---")
-        
-        # ----- 섹션 2: 시차(Lag) 상관관계 분석 -----
-        st.markdown("### 🕐 시차(Lag) 상관관계 분석")
+        st.markdown("### 🕐 시차(Lag) 분석")
         
         col1, col2, col3 = st.columns(3)
-        
         with col1:
-            leading_indicator = st.selectbox(
-                "🔵 선행지표 (먼저 움직이는 지표)",
-                KEY_INDICATORS,
-                index=KEY_INDICATORS.index("두바이유") if "두바이유" in KEY_INDICATORS else 0,
-                key="leading"
-            )
-        
+            leading = st.selectbox("선행지표", KEY_INDICATORS, index=5, key="lead")
         with col2:
-            lagging_indicator = st.selectbox(
-                "🔴 후행지표 (따라오는 지표)",
-                KEY_INDICATORS,
-                index=KEY_INDICATORS.index("육지 SMP") if "육지 SMP" in KEY_INDICATORS else 1,
-                key="lagging"
-            )
-        
+            lagging = st.selectbox("후행지표", KEY_INDICATORS, index=3, key="lag")
         with col3:
-            max_lag = st.slider("최대 시차 (일)", 1, 60, 30, key="max_lag")
+            max_lag = st.slider("최대 시차", 1, 60, 30, key="mlag")
         
-        if leading_indicator != lagging_indicator:
-            lag_df = calculate_lagged_correlation(df, leading_indicator, lagging_indicator, max_lag)
+        if leading != lagging:
+            lag_df = calculate_lagged_correlation(df, leading, lagging, max_lag)
             optimal = find_optimal_lag(lag_df)
             
-            col1, col2 = st.columns([2, 1])
+            fig_lag = go.Figure()
+            fig_lag.add_trace(go.Scatter(x=lag_df['lag'], y=lag_df['correlation'],
+                                        mode='lines+markers', line=dict(color='#3498db')))
+            if optimal is not None:
+                fig_lag.add_vline(x=optimal['lag'], line_dash="dash", line_color="#e94560")
+            fig_lag.add_hline(y=0, line_dash="dot", line_color="gray")
+            fig_lag.update_layout(
+                title=f"{leading} → {lagging}",
+                template='plotly_dark',
+                paper_bgcolor='rgba(22,33,62,0.8)',
+                plot_bgcolor='rgba(22,33,62,0.8)',
+                height=300, yaxis=dict(range=[-1, 1])
+            )
+            st.plotly_chart(fig_lag, use_container_width=True)
             
-            with col1:
-                fig_lag = go.Figure()
-                fig_lag.add_trace(go.Scatter(
-                    x=lag_df['lag'], y=lag_df['correlation'],
-                    mode='lines+markers', name='상관계수',
-                    line=dict(color='#3498db', width=2), marker=dict(size=6)
-                ))
-                
-                if optimal is not None:
-                    fig_lag.add_vline(x=optimal['lag'], line_dash="dash", line_color="#e94560",
-                                     annotation_text=f"최적 Lag: {int(optimal['lag'])}일")
-                
-                fig_lag.add_hline(y=0, line_dash="dot", line_color="gray", opacity=0.5)
-                fig_lag.update_layout(
-                    title=f"{leading_indicator} → {lagging_indicator} 시차별 상관계수",
-                    xaxis_title="시차 (일)", yaxis_title="상관계수",
-                    template='plotly_dark',
-                    paper_bgcolor='rgba(22,33,62,0.8)',
-                    plot_bgcolor='rgba(22,33,62,0.8)',
-                    height=350, yaxis=dict(range=[-1, 1])
-                )
-                st.plotly_chart(fig_lag, use_container_width=True)
-            
-            with col2:
-                if optimal is not None and not np.isnan(optimal['correlation']):
-                    strength, direction, css_class = interpret_correlation(optimal['correlation'])
-                    st.markdown(f"""
-                    <div class="insight-box">
-                        <h4>💡 분석 결과</h4>
-                        <p><strong>최적 시차:</strong> <span style="color: #e94560; font-size: 1.3rem;">{int(optimal['lag'])}일</span></p>
-                        <p><strong>상관계수:</strong> <span class="{css_class}">{optimal['correlation']:.3f}</span></p>
-                        <p><strong>해석:</strong> {strength} {direction} 상관관계</p>
-                        <p><strong>통계적 유의성:</strong> {'✅ 유의함' if optimal['significant'] else '⚠️ 유의하지 않음'}</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-        else:
-            st.warning("선행지표와 후행지표를 다르게 선택해주세요.")
+            if optimal is not None and not np.isnan(optimal['correlation']):
+                strength, direction, _ = interpret_correlation(optimal['correlation'])
+                st.info(f"📌 최적 시차: **{int(optimal['lag'])}일** | 상관계수: **{optimal['correlation']:.3f}** ({strength} {direction} 상관관계)")
     
     # =========================================================================
-    # TAB 3: 예측 분석 (신규)
+    # TAB 5: 예측 분석
     # =========================================================================
-    with tab3:
+    with tab5:
         st.markdown("## 🎯 회귀분석 기반 예측")
-        st.markdown("선행지표들을 활용하여 후행지표의 값을 예측합니다.")
-        
-        st.markdown("---")
         
         col1, col2 = st.columns([1, 2])
         
         with col1:
-            st.markdown("### ⚙️ 예측 설정")
-            
-            # 예측 대상 선택
-            target_col = st.selectbox(
-                "🎯 예측 대상 (후행지표)",
-                KEY_INDICATORS,
-                index=KEY_INDICATORS.index("육지 SMP") if "육지 SMP" in KEY_INDICATORS else 0,
-                key="pred_target"
+            target = st.selectbox("예측 대상", KEY_INDICATORS, index=3, key="pred_t")
+            features = st.multiselect(
+                "설명 변수",
+                [x for x in KEY_INDICATORS if x != target],
+                default=["두바이유", "달러환율"],
+                key="pred_f"
             )
-            
-            # 설명 변수 선택
-            available_features = [x for x in KEY_INDICATORS if x != target_col]
-            feature_cols = st.multiselect(
-                "📊 설명 변수 (선행지표들)",
-                available_features,
-                default=["두바이유", "달러환율", "국고채 (3년)"] if all(x in available_features for x in ["두바이유", "달러환율", "국고채 (3년)"]) else available_features[:3],
-                key="pred_features"
-            )
-            
-            # 학습 기간
-            train_period = st.selectbox(
-                "📅 학습 데이터 기간",
-                ["3개월", "6개월", "1년", "전체"],
-                index=2,
-                key="train_period"
-            )
-            
-            train_days = CHART_PERIODS.get(train_period)
-            
-            run_prediction = st.button("🚀 예측 모델 실행", use_container_width=True)
+            train_period = st.selectbox("학습 기간", ["3개월", "6개월", "1년"], index=2, key="train_p")
+            run_pred = st.button("🚀 예측 실행", use_container_width=True)
         
         with col2:
-            if run_prediction and len(feature_cols) >= 1:
-                with st.spinner("모델 학습 중..."):
-                    model_info, X, y, error = build_regression_model(
-                        df, target_col, feature_cols, 
-                        train_days if train_days else len(df)
-                    )
+            if run_pred and features:
+                train_days = CHART_PERIODS.get(train_period)
+                model_info, _, _, error = build_regression_model(df, target, features, train_days)
                 
                 if error:
-                    st.error(f"❌ {error}")
+                    st.error(error)
                 elif model_info:
-                    # 모델 성능
-                    st.markdown("### 📊 모델 성능")
+                    st.markdown(f"**R² (설명력): {model_info['r2']:.3f}** | MAE: {model_info['mae']:.2f}")
                     
-                    perf_col1, perf_col2, perf_col3 = st.columns(3)
-                    with perf_col1:
-                        r2_color = "#00d26a" if model_info['r2'] >= 0.7 else ("#f39c12" if model_info['r2'] >= 0.4 else "#ff6b6b")
-                        st.markdown(f"""
-                        <div class="metric-card">
-                            <div class="metric-title">R² (설명력)</div>
-                            <div class="metric-value" style="color: {r2_color};">{model_info['r2']:.3f}</div>
-                            <div style="color: #888;">{'좋음' if model_info['r2'] >= 0.7 else ('보통' if model_info['r2'] >= 0.4 else '낮음')}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    
-                    with perf_col2:
-                        st.markdown(f"""
-                        <div class="metric-card">
-                            <div class="metric-title">MAE (평균 오차)</div>
-                            <div class="metric-value">{model_info['mae']:.2f}</div>
-                            <div style="color: #888;">절대 평균 오차</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    
-                    with perf_col3:
-                        # 현재 값 기준 예측
-                        current_pred = predict_future(model_info, df, feature_cols)
-                        actual_latest = df[target_col].dropna().iloc[-1]
-                        
-                        st.markdown(f"""
-                        <div class="prediction-box">
-                            <h4>🎯 현재 예측값</h4>
-                            <p style="font-size: 1.5rem; font-weight: bold;">{current_pred:.2f}</p>
-                            <p style="color: #888;">실제값: {actual_latest:.2f}</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    
-                    # 변수 중요도
-                    st.markdown("### 📈 변수 중요도")
-                    coef_df = model_info['coefficients']
-                    
-                    fig_coef = go.Figure(go.Bar(
-                        x=coef_df['importance'],
-                        y=coef_df['feature'],
-                        orientation='h',
-                        marker_color=['#00d26a' if c > 0 else '#ff6b6b' for c in coef_df['coefficient']]
-                    ))
-                    fig_coef.update_layout(
-                        title="변수별 영향력 (절대값)",
+                    fig = go.Figure()
+                    fig.add_trace(go.Scatter(x=model_info['dates'], y=model_info['y_actual'],
+                                            mode='lines', name='실제값', line=dict(color='#3498db')))
+                    fig.add_trace(go.Scatter(x=model_info['dates'], y=model_info['y_pred'],
+                                            mode='lines', name='예측값', line=dict(color='#e94560', dash='dot')))
+                    fig.update_layout(
                         template='plotly_dark',
                         paper_bgcolor='rgba(22,33,62,0.8)',
                         plot_bgcolor='rgba(22,33,62,0.8)',
-                        height=250,
-                        yaxis=dict(autorange="reversed")
+                        height=300
                     )
-                    st.plotly_chart(fig_coef, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True)
                     
-                    # 실제 vs 예측 차트
-                    st.markdown("### 📉 실제값 vs 예측값")
-                    
-                    fig_pred = go.Figure()
-                    fig_pred.add_trace(go.Scatter(
-                        x=model_info['dates'], y=model_info['y_actual'],
-                        mode='lines', name='실제값',
-                        line=dict(color='#3498db', width=2)
-                    ))
-                    fig_pred.add_trace(go.Scatter(
-                        x=model_info['dates'], y=model_info['y_pred'],
-                        mode='lines', name='예측값',
-                        line=dict(color='#e94560', width=2, dash='dot')
-                    ))
-                    fig_pred.update_layout(
-                        template='plotly_dark',
-                        paper_bgcolor='rgba(22,33,62,0.8)',
-                        plot_bgcolor='rgba(22,33,62,0.8)',
-                        height=350,
-                        legend=dict(orientation="h", yanchor="bottom", y=1.02),
-                        hovermode='x unified'
-                    )
-                    st.plotly_chart(fig_pred, use_container_width=True)
-                    
-                    # 해석
-                    st.markdown("### 💡 분석 인사이트")
-                    
-                    top_feature = coef_df.iloc[0]
-                    direction = "양의" if top_feature['coefficient'] > 0 else "음의"
-                    
-                    st.info(f"""
-                    **모델 해석:**
-                    - **{target_col}** 예측에 가장 큰 영향을 미치는 변수는 **{top_feature['feature']}** 입니다.
-                    - {top_feature['feature']}와 {target_col}은 **{direction} 관계**입니다.
-                    - 모델의 설명력(R²)은 **{model_info['r2']*100:.1f}%** 입니다.
-                    """)
-                    
-                    if model_info['r2'] < 0.4:
-                        st.warning("⚠️ 모델 설명력이 낮습니다. 다른 설명 변수를 추가하거나 학습 기간을 조정해보세요.")
-            
-            elif run_prediction:
-                st.warning("설명 변수를 1개 이상 선택해주세요.")
-            else:
-                st.info("👈 왼쪽에서 설정 후 '예측 모델 실행' 버튼을 클릭하세요.")
+                    pred = predict_future(model_info, df, features)
+                    actual = df[target].dropna().iloc[-1]
+                    st.success(f"**현재 예측값: {pred:.2f}** (실제: {actual:.2f})")
+            elif run_pred:
+                st.warning("설명 변수를 선택하세요.")
     
     # =========================================================================
-    # TAB 4: 차트 분석
+    # TAB 6: 데이터
     # =========================================================================
-    with tab4:
-        st.markdown("### 📈 지표 추이 차트")
-        
-        col1, col2 = st.columns([1, 3])
-        with col1:
-            chart_category = st.selectbox("카테고리", selected_categories, key="chart_cat")
-            if chart_category:
-                available = list(INDICATORS[chart_category]['columns'].keys())
-                chart_indicators = st.multiselect("지표 선택", available, default=available[:2])
-        
-        with col2:
-            if chart_category and chart_indicators:
-                days = CHART_PERIODS.get(selected_period)
-                df_chart = df.copy()
-                if days:
-                    cutoff = latest_date - timedelta(days=days)
-                    df_chart = df_chart[df_chart['날짜'] >= cutoff]
-                
-                fig = go.Figure()
-                colors = px.colors.qualitative.Set2
-                for i, ind in enumerate(chart_indicators):
-                    fig.add_trace(go.Scatter(
-                        x=df_chart['날짜'], y=df_chart[ind],
-                        mode='lines', name=ind,
-                        line=dict(color=colors[i % len(colors)], width=2)
-                    ))
-                
-                fig.update_layout(
-                    template='plotly_dark',
-                    paper_bgcolor='rgba(22,33,62,0.8)',
-                    plot_bgcolor='rgba(22,33,62,0.8)',
-                    height=400,
-                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                    hovermode='x unified'
-                )
-                st.plotly_chart(fig, use_container_width=True)
-        
-        st.markdown("---")
-        st.markdown("### 🔄 다중 지표 비교")
-        
-        compare_options = ['달러환율', '육지 SMP', '두바이유', '국고채 (3년)', 'IRS (3년)']
-        compare_indicators = st.multiselect("비교할 지표 (최대 4개)", compare_options, default=['달러환율', '육지 SMP'], max_selections=4, key="compare")
-        
-        if compare_indicators:
-            days = CHART_PERIODS.get(selected_period)
-            df_compare = df.copy()
-            if days:
-                cutoff = latest_date - timedelta(days=days)
-                df_compare = df_compare[df_compare['날짜'] >= cutoff]
-            
-            df_norm = df_compare[['날짜'] + compare_indicators].copy()
-            for col in compare_indicators:
-                first = df_norm[col].dropna().iloc[0] if len(df_norm[col].dropna()) > 0 else 1
-                df_norm[col] = (df_norm[col] / first) * 100
-            
-            fig2 = go.Figure()
-            for col in compare_indicators:
-                fig2.add_trace(go.Scatter(x=df_norm['날짜'], y=df_norm[col], mode='lines', name=col))
-            
-            fig2.add_hline(y=100, line_dash="dash", line_color="gray", opacity=0.5)
-            fig2.update_layout(
-                template='plotly_dark',
-                paper_bgcolor='rgba(22,33,62,0.8)',
-                plot_bgcolor='rgba(22,33,62,0.8)',
-                height=350,
-                yaxis_title="상대 변화율 (시작=100)",
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                hovermode='x unified'
-            )
-            st.plotly_chart(fig2, use_container_width=True)
-    
-    # =========================================================================
-    # TAB 5: 데이터 테이블
-    # =========================================================================
-    with tab5:
-        st.markdown("### 📋 원본 데이터 조회")
+    with tab6:
+        st.markdown("### 📋 원본 데이터")
         
         col1, col2 = st.columns(2)
         with col1:
             date_range = st.date_input("날짜 범위", value=(latest_date - timedelta(days=30), latest_date))
         with col2:
-            table_category = st.selectbox("카테고리", ['전체'] + list(INDICATORS.keys()), key="table_cat")
+            table_cat = st.selectbox("카테고리", ['전체'] + list(INDICATORS.keys()), key="tbl_cat")
         
         df_table = df.copy()
         if len(date_range) == 2:
             start, end = date_range
             df_table = df_table[(df_table['날짜'] >= pd.to_datetime(start)) & (df_table['날짜'] <= pd.to_datetime(end))]
         
-        if table_category != '전체':
-            cols = ['날짜'] + list(INDICATORS[table_category]['columns'].keys())
+        if table_cat != '전체':
+            cols = ['날짜'] + list(INDICATORS[table_cat]['columns'].keys())
             df_table = df_table[cols]
         
         df_display = df_table.copy()
         df_display['날짜'] = df_display['날짜'].dt.strftime('%Y-%m-%d')
-        
         st.dataframe(df_display.sort_values('날짜', ascending=False), use_container_width=True, height=400)
         
         csv = df_display.to_csv(index=False, encoding='utf-8-sig')
-        st.download_button("📥 CSV 다운로드", csv, f"daily_data_{datetime.now().strftime('%Y%m%d')}.csv", "text/csv")
+        st.download_button("📥 CSV 다운로드", csv, f"data_{datetime.now().strftime('%Y%m%d')}.csv", "text/csv")
     
     # 푸터
     st.markdown("---")
     st.markdown("""
     <div style="text-align: center; color: #666; padding: 1rem;">
-        📊 데일리 클리핑 통합 지표 대시보드 v3.0 | 데이터 출처: 서울외국환중개, 신재생 원스톱 포털, 한국석유공사, 한국가스공사, 경제통계시스템
+        🌱 친환경·인프라 투자 대시보드 v4.0 | 신재생에너지·순환경제·인프라 전문 자산운용사용
     </div>
     """, unsafe_allow_html=True)
 
