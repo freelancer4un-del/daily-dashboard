@@ -9,7 +9,7 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from scipy import stats
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import StandardScaler
@@ -21,6 +21,9 @@ warnings.filterwarnings('ignore')
 # 설정
 # =============================================================================
 DATA_PATH = "data/데일리_클리핑_자료.xlsm"
+
+# 한국 시간대 설정 (UTC+9)
+KST = timezone(timedelta(hours=9))
 
 DATA_COLUMNS = [
     "날짜", "달러환율", "엔환율", "유로환율", "위안화환율",
@@ -417,7 +420,6 @@ def check_alerts(summary):
                     'change_pct': ind['change_pct'],
                     'direction': ind['direction'],
                     'icon': data['icon'],
-                    # 🔽 여기 추가된 부분들 때문에 전일/현재 값 표시 가능
                     'current': ind.get('value'),
                     'previous': ind.get('previous'),
                     'fmt': ind.get('format', '{:,.2f}'),
@@ -722,8 +724,8 @@ def main():
         - **버전:** v5.0
         """)
     
-    # 메인 헤더 (기준일 + 오늘 날짜)
-    today = datetime.now()
+    # 메인 헤더 (기준일 + 오늘 날짜, 한국시간 기준)
+    today = datetime.now(KST)
     st.markdown(f"""
     <div class="main-header">
         <h1>🌱 친환경·인프라 투자 대시보드 v5.0</h1>
@@ -733,8 +735,7 @@ def main():
     
     summary = get_summary(df)
     
-   
-   # 급변동 알림
+    # 급변동 알림
     alerts = check_alerts(summary)
     if alerts:
         st.markdown(
@@ -784,20 +785,17 @@ def main():
                         </div>
                         """, unsafe_allow_html=True)
 
-
-    
     # 탭 (메뉴얼 탭 맨 앞에 추가)
     tab0, tab1, tab4, tab5, tab6, tab2, tab3 = st.tabs([
-    "📖 사용 메뉴얼",     # tab0
-    "📈 지표 현황",       # tab1
-    "🔬 상관관계 분석",   # tab4
-    "🎯 예측 분석",       # tab5
-    "📋 데이터",          # tab6
-    "🌱 시뮬레이션(미완성)", # tab2  (끝에서 두 번째)
-    "🔔 투자 시그널(미완성)"       # tab3  (맨 끝)
-])
+        "📖 사용 메뉴얼",     # tab0
+        "📈 지표 현황",       # tab1
+        "🔬 상관관계 분석",   # tab4
+        "🎯 예측 분석",       # tab5
+        "📋 데이터",          # tab6
+        "🌱 시뮬레이션(미완성)", # tab2
+        "🔔 투자 시그널(미완성)" # tab3
+    ])
 
-    
     # =========================================================================
     # TAB 0: 사용 메뉴얼
     # =========================================================================
@@ -958,7 +956,7 @@ def main():
         
         st.markdown("---")
 
-# 6. 수익성 시뮬레이터 탭
+        # 6. 수익성 시뮬레이터 탭
         st.markdown("### 6️⃣ 🌱 수익성 시뮬레이터 탭")
         st.markdown("""
         <div class="manual-section">
@@ -1315,10 +1313,9 @@ def main():
             
             # 3) 기본 추천 설명 변수 후보
             base_default = ["두바이유", "달러환율"]
-            #    → 실제 옵션에 존재하는 것만 기본값으로 사용
             default_features = [x for x in base_default if x in feature_options]
             
-            # 4) 멀티셀렉트 (에러 안 나게 default를 옵션에 맞게 조정)
+            # 4) 멀티셀렉트
             features = st.multiselect(
                 "설명 변수",
                 feature_options,
@@ -1375,10 +1372,10 @@ def main():
     with tab6:
         st.markdown("### 📋 원본 데이터")
         
-        col1, col2 = st.columns(2)
-        with col1:
+        col1_, col2_ = st.columns(2)
+        with col1_:
             date_range = st.date_input("날짜 범위", value=(latest_date - timedelta(days=30), latest_date))
-        with col2:
+        with col2_:
             table_cat = st.selectbox("카테고리", ['전체'] + list(INDICATORS.keys()), key="tc")
         
         df_table = df.copy()
@@ -1387,15 +1384,16 @@ def main():
             df_table = df_table[(df_table['날짜'] >= pd.to_datetime(start)) & (df_table['날짜'] <= pd.to_datetime(end))]
         
         if table_cat != '전체':
-            cols = ['날짜'] + list(INDICATORS[table_cat]['columns'].keys())
-            df_table = df_table[cols]
+            cols_show = ['날짜'] + list(INDICATORS[table_cat]['columns'].keys())
+            df_table = df_table[cols_show]
         
         df_display = df_table.copy()
         df_display['날짜'] = df_display['날짜'].dt.strftime('%Y-%m-%d')
         st.dataframe(df_display.sort_values('날짜', ascending=False), use_container_width=True, height=400)
         
         csv = df_display.to_csv(index=False, encoding='utf-8-sig')
-        st.download_button("📥 CSV 다운로드", csv, f"data_{datetime.now().strftime('%Y%m%d')}.csv", "text/csv")
+        # 파일명도 KST 기준 날짜 사용
+        st.download_button("📥 CSV 다운로드", csv, f"data_{today.strftime('%Y%m%d')}.csv", "text/csv")
     
     # 푸터
     st.markdown("---")
