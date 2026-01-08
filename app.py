@@ -20,7 +20,7 @@ warnings.filterwarnings('ignore')
 # =============================================================================
 # 설정
 # =============================================================================
-DATA_PATH = "data/데일리_클리핑_자료.xlsm"
+DATA_PATH = "data/DailyClipping.xlsm"
 
 # 한국 시간대 설정 (UTC+9)
 KST = timezone(timedelta(hours=9))
